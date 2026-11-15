@@ -1,0 +1,11 @@
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+.env*
+
+# MT5 exports are large and broker-specific: never commit them (TZ section 5)
+data/raw/*
+!data/raw/.gitkeep
+
+.claude/settings.local.json

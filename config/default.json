@@ -1,0 +1,18 @@
+{
+  "brokerTimeZone": "Europe/Athens",
+  "dataDir": "data/raw",
+  "reportsDir": "reports",
+  "initialCapitalUsd": 10000,
+  "riskPerTradePct": 0.5,
+  "costs": {
+    "minSpreadPoints": 0,
+    "commissionPerLotRoundTrip": 0,
+    "slippagePips": 0.2,
+    "swap": {
+      "EURUSD": { "swapLongPips": 0, "swapShortPips": 0 },
+      "GBPUSD": { "swapLongPips": 0, "swapShortPips": 0 },
+      "USDJPY": { "swapLongPips": 0, "swapShortPips": 0 }
+    }
+  },
+  "usdExposureLimit": false
+}
