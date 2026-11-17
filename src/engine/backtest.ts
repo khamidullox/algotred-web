@@ -313,6 +313,20 @@ export function runBacktest(input: BacktestInput): BacktestResult {
       return;
     }
 
+    if (
+      action.minStopDistance !== undefined &&
+      levels.stopDistance < action.minStopDistance - spec.point / 100
+    ) {
+      skip(
+        state,
+        direction,
+        signalTime,
+        "stop-too-close",
+        `стоп ${levels.stopDistance.toFixed(spec.digits)} ближе допустимых ${action.minStopDistance.toFixed(spec.digits)}`,
+      );
+      return;
+    }
+
     const riskUsd = (balance * config.riskPerTradePct) / 100;
     const lots = lotsForRisk(spec, riskUsd, levels.stopDistance, entry.price);
     if (lots === 0) {

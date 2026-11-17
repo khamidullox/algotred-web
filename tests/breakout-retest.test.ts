@@ -6,6 +6,7 @@ import type { Bar } from "../src/data/types";
 import {
   breakoutRetestV1A,
   breakoutRetestV1B,
+  breakoutRetestV2MinStop,
   inSession,
 } from "../src/strategies/breakout-retest-v1";
 import { at, bar, flatBars, indexAt, symbolData, testConfig, ZONE } from "./helpers/bars";
@@ -314,6 +315,37 @@ describe("BreakoutRetestV1-B trend filter", () => {
   it("declares its parameters", () => {
     expect(breakoutRetestV1A.params.trendFilter).toBe("none");
     expect(breakoutRetestV1B.params.trendFilter).toBe("SMA(200) H1");
+    expect(breakoutRetestV1A.params.minStopAtr).toBe("none");
     expect(breakoutRetestV1A.executionTimeframe).toBe("M15");
+  });
+});
+
+describe("BreakoutRetestV2-minstop", () => {
+  it("takes the standard pattern like V1-A: the 7.1-pip stop is above 0.5 x ATR", () => {
+    const bars = quiet();
+    longPattern(bars, BREAKOUT);
+    const v2 = run(bars, breakoutRetestV2MinStop);
+    expect(v2.trades).toHaveLength(1);
+    expect(v2.trades[0]?.stopDistance).toBe(0.00071);
+    expect(v2.skipped).toEqual([]);
+  });
+
+  it("skips a trade whose stop is tighter than 0.5 x ATR, where V1-A trades it", () => {
+    // The retest hour's lowest low is 1.2006 (the other M15 bars of that hour):
+    // stop 1.20049, distance 5.1 pips, under the 5.5-pip minimum (0.5 x 0.0011).
+    const bars = quiet();
+    longPattern(bars, BREAKOUT, { retestLow: 0.00061 });
+    const v1 = run(bars, breakoutRetestV1A);
+    expect(v1.trades).toHaveLength(1);
+    expect(v1.trades[0]?.stopDistance).toBe(0.00051);
+    const v2 = run(bars, breakoutRetestV2MinStop);
+    expect(v2.trades).toEqual([]);
+    expect(v2.skipped.map((skip) => skip.reason)).toEqual(["stop-too-close"]);
+  });
+
+  it("declares the minimum stop", () => {
+    expect(breakoutRetestV2MinStop.name).toBe("BreakoutRetestV2-minstop");
+    expect(breakoutRetestV2MinStop.params.minStopAtr).toBe(0.5);
+    expect(breakoutRetestV2MinStop.params.trendFilter).toBe("none");
   });
 });

@@ -144,7 +144,8 @@ export function decide(
       ? "CONTINUE"
       : "INCONCLUSIVE";
 
-  const applies = strategy.startsWith("BreakoutRetestV1") && dataset === "test";
+  // Section 10 is written for the BreakoutRetest family; V2 variants inherit it (TZ 16).
+  const applies = strategy.startsWith("BreakoutRetest") && dataset === "test";
   let note: string;
   if (strategy === "TrendD1") {
     note = "К TrendD1 критерии раздела 10 не применяются: это базовая линия и проверка движка. Вердикт справочный.";

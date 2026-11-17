@@ -26,7 +26,16 @@ export const BREAKOUT_RETEST = {
   sessionEnd: 17 * 60,
 } as const;
 
-export type Variant = "A" | "B";
+export interface BreakoutRetestOptions {
+  readonly name: string;
+  /** Variant B: trade only in the direction of SMA(200) on H1. */
+  readonly trendFilter: boolean;
+  /**
+   * Stage 2 (TZ 16.2): skip the trade when the actual stop distance is below
+   * this many ATR(14); null keeps the V1 rules.
+   */
+  readonly minStopAtr: number | null;
+}
 
 interface Setup {
   readonly direction: Direction;
@@ -56,9 +65,12 @@ export function inSession(utcMs: number): boolean {
   });
 }
 
-function createInstance(variant: Variant, ctxZone: () => string): StrategyInstance {
+function createInstance(
+  options: BreakoutRetestOptions,
+  ctxZone: () => string,
+): StrategyInstance {
   const atr = new AtrWilder(BREAKOUT_RETEST.atrPeriod);
-  const sma = variant === "B" ? new Sma(BREAKOUT_RETEST.trendSmaPeriod) : null;
+  const sma = options.trendFilter ? new Sma(BREAKOUT_RETEST.trendSmaPeriod) : null;
   let setup: Setup | null = null;
 
   const serverTime = (utcMs: number): string =>
@@ -159,6 +171,9 @@ function createInstance(variant: Variant, ctxZone: () => string): StrategyInstan
       stopLoss: { price: buy ? retest.extreme - buffer : retest.extreme + buffer },
       takeProfit: { rMultiple: BREAKOUT_RETEST.takeProfitR },
       maxStopDistance: BREAKOUT_RETEST.maxStopAtr * current.atr,
+      ...(options.minStopAtr === null
+        ? {}
+        : { minStopDistance: options.minStopAtr * current.atr }),
       // The entry must be the M15 that opens right after the confirmation;
       // a weekend or any other gap in between cancels the signal (decision of 2026-11-17).
       expectedEntryTime: ctx.now,
@@ -167,7 +182,7 @@ function createInstance(variant: Variant, ctxZone: () => string): StrategyInstan
         `пробой ${serverTime(current.breakoutTime)} close ${price(current.breakoutClose)}; ` +
         `ретест ${serverTime(retest.time)} ${buy ? "low" : "high"} ${price(retest.extreme)}; ` +
         `подтверждение ${serverTime(ctx.now - 15 * 60_000)}` +
-        (variant === "B" ? `; SMA(200) ${price(sma?.at(current.breakoutIndex) ?? Number.NaN)}` : ""),
+        (sma === null ? "" : `; SMA(200) ${price(sma.at(current.breakoutIndex))}`),
     };
   }
 
@@ -211,9 +226,9 @@ function createInstance(variant: Variant, ctxZone: () => string): StrategyInstan
   };
 }
 
-export function createBreakoutRetestV1(variant: Variant): Strategy {
+export function createBreakoutRetest(options: BreakoutRetestOptions): Strategy {
   return {
-    name: `BreakoutRetestV1-${variant}`,
+    name: options.name,
     params: {
       levelLookbackH1: BREAKOUT_RETEST.levelLookback,
       atrPeriodH1: BREAKOUT_RETEST.atrPeriod,
@@ -226,14 +241,15 @@ export function createBreakoutRetestV1(variant: Variant): Strategy {
       takeProfitR: BREAKOUT_RETEST.takeProfitR,
       sessions: "08:00-17:00 Europe/London or America/New_York, inclusive",
       cancelOnGapAfterConfirmation: true,
-      trendFilter: variant === "B" ? `SMA(${BREAKOUT_RETEST.trendSmaPeriod}) H1` : "none",
+      trendFilter: options.trendFilter ? `SMA(${BREAKOUT_RETEST.trendSmaPeriod}) H1` : "none",
+      minStopAtr: options.minStopAtr ?? "none",
       executionTimeframe: "M15",
     },
     executionTimeframe: "M15",
     create: () => {
       // The zone is read from the context on the first call; the instance is per symbol.
       let zone = "utc";
-      const instance = createInstance(variant, () => zone);
+      const instance = createInstance(options, () => zone);
       return {
         onBarClose(ctx) {
           zone = ctx.zone;
@@ -244,5 +260,19 @@ export function createBreakoutRetestV1(variant: Variant): Strategy {
   };
 }
 
-export const breakoutRetestV1A = createBreakoutRetestV1("A");
-export const breakoutRetestV1B = createBreakoutRetestV1("B");
+export const breakoutRetestV1A = createBreakoutRetest({
+  name: "BreakoutRetestV1-A",
+  trendFilter: false,
+  minStopAtr: null,
+});
+export const breakoutRetestV1B = createBreakoutRetest({
+  name: "BreakoutRetestV1-B",
+  trendFilter: true,
+  minStopAtr: null,
+});
+/** Stage 2, TZ 16.2: V1-A with trades whose stop is tighter than 0.5 x ATR(14) skipped. */
+export const breakoutRetestV2MinStop = createBreakoutRetest({
+  name: "BreakoutRetestV2-minstop",
+  trendFilter: false,
+  minStopAtr: 0.5,
+});

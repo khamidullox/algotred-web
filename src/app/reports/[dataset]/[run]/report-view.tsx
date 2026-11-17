@@ -17,6 +17,7 @@ const SKIP_LABELS = {
   "usd-exposure": "лимит по доллару",
   "invalid-levels": "стоп или тейк не с той стороны",
   "stop-too-far": "стоп слишком далеко",
+  "stop-too-close": "стоп слишком близко",
   "lot-too-small": "лот меньше 0.01",
 } as const;
 

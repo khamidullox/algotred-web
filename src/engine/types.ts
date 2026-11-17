@@ -72,6 +72,11 @@ export interface Signal {
    */
   readonly maxStopDistance?: number;
   /**
+   * The trade is skipped when the actual stop distance is smaller than this,
+   * in price units. BreakoutRetestV2-minstop (TZ 16.2).
+   */
+  readonly minStopDistance?: number;
+  /**
    * Open time (UTC ms) the next bar must have for the signal to be filled;
    * when the next bar opens at any other time (a gap, the weekend) the signal
    * is dropped. Strategies whose entry must follow the signal bar at once set
@@ -165,6 +170,7 @@ export type SkipReason =
   | "usd-exposure"
   | "invalid-levels"
   | "stop-too-far"
+  | "stop-too-close"
   | "lot-too-small";
 
 export interface SkippedSignal {

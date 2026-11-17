@@ -472,6 +472,26 @@ describe("position rules", () => {
     expect(result.skipped.map((skip) => skip.reason)).toEqual(["stop-too-far"]);
   });
 
+  it("the minimum-stop filter drops a trade whose actual stop is too close", () => {
+    const action: StrategyAction = {
+      kind: "entry",
+      direction: "BUY",
+      stopLoss: { price: 1.0996 },
+      takeProfit: null,
+      minStopDistance: 0.0005,
+      reason: "test",
+    };
+    const result = run(symbolData("EURUSD", base), scripted({ "2024-05-06T10:00": action }));
+    expect(result.trades).toEqual([]);
+    expect(result.skipped.map((skip) => skip.reason)).toEqual(["stop-too-close"]);
+    // Exactly the minimum passes.
+    const exact = run(
+      symbolData("EURUSD", base),
+      scripted({ "2024-05-06T10:00": { ...action, stopLoss: { price: 1.0995 } } }),
+    );
+    expect(exact.trades).toHaveLength(1);
+  });
+
   it("a stop on the wrong side of the fill is rejected", () => {
     const action: StrategyAction = {
       kind: "entry",
