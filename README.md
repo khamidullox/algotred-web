@@ -8,11 +8,13 @@
 npm install
 npm test                                              # тесты
 npm run typecheck                                     # проверка типов
-npm run validate                                      # проверка CSV из data/raw (шаг 2, пока заглушка)
+npm run validate                                      # проверка CSV из data/raw
 npm run backtest -- --strategy TrendD1 --dataset dev  # бэктест (шаги 3–6, пока заглушка)
 npm run dev                                           # сайт на http://localhost:3000
 ```
 
-CSV из MetaTrader 5 кладутся в `data/raw/` под именами вида `EURUSD_H1.csv`. В git они не попадают.
+CSV из MetaTrader 5 кладутся в `data/raw/` под именами вида `EURUSD_H1.csv`. В git они не попадают. Проще всего загрузить их на странице «Данные»: она сама распознаёт имена экспорта MT5, показывает результат проверки и свечной график.
+
+`npm run validate` завершается с кодом 0, если ошибок нет, и с кодом 3, если данные использовать нельзя. Предупреждения (пропуски, нулевой спред) на код не влияют.
 
 Настройки — в `config/default.json`. Параметры стратегий в конфиг не вынесены: они зафиксированы в ТЗ.

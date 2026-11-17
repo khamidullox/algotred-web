@@ -5,7 +5,9 @@
   --muted: #6b6f76;
   --border: #dfe1e4;
   --accent: #1f5fbf;
+  --on-accent: #ffffff;
   --danger: #b3261e;
+  --good: #1b7f3b;
   color-scheme: light dark;
 }
 
@@ -17,7 +19,9 @@
     --muted: #9a9fa6;
     --border: #2f3237;
     --accent: #7fb0ff;
+    --on-accent: #0f1626;
     --danger: #ff8a80;
+    --good: #6fcf8a;
   }
 }
 
@@ -130,4 +134,166 @@ th {
 code {
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.92em;
+}
+
+h3 {
+  margin: 24px 0 8px;
+  font-size: 1rem;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.note {
+  margin: 10px 0 0;
+  font-size: 0.92rem;
+}
+
+.ok {
+  color: var(--good);
+}
+
+.bad {
+  color: var(--danger);
+}
+
+.status {
+  white-space: nowrap;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px 16px;
+  margin: 14px 0;
+}
+
+.toolbar label:not(.button) {
+  display: grid;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+select,
+input[type="date"] {
+  min-height: 36px;
+  padding: 6px 10px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 14px;
+  font: inherit;
+  font-weight: 500;
+  color: var(--on-accent);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.button.secondary {
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.button:disabled,
+.button:has(input:disabled) {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.button:focus-visible,
+.button:focus-within,
+select:focus-visible,
+input:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.banner {
+  margin: 14px 0;
+  padding: 12px 16px;
+  font-weight: 500;
+  background: var(--surface);
+  border: 1px solid currentColor;
+  border-radius: 8px;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px 24px;
+  margin: 14px 0;
+}
+
+.facts dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.facts dd {
+  margin: 2px 0 0;
+}
+
+.issues {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.issues > li {
+  margin: 6px 0;
+}
+
+.issues ul {
+  margin: 4px 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+details {
+  margin: 16px 0;
+}
+
+summary {
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.upload-log {
+  margin: 8px 0;
+  padding-left: 20px;
+  font-size: 0.92rem;
+}
+
+.chart-box {
+  padding: 12px;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  min-height: 24px;
+  margin-bottom: 8px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.85rem;
+}
+
+.chart {
+  width: 100%;
+  height: 460px;
 }

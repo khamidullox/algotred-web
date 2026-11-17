@@ -1,9 +1,44 @@
-import { Placeholder } from "../_components/placeholder";
+import {
+  ConfigError,
+  loadConfig,
+  SYMBOLS,
+  TIMEFRAMES,
+  type Config,
+} from "../../config";
+import { listSeriesFiles } from "../_lib/data-store";
+import { DataWorkspace } from "./data-workspace";
+
+// Files in the data directory change outside the app: read them on every request.
+export const dynamic = "force-dynamic";
 
 export default function DataPage() {
+  let config: Config;
+  try {
+    config = loadConfig();
+  } catch (error) {
+    if (!(error instanceof ConfigError)) throw error;
+    return (
+      <>
+        <h1>Данные</h1>
+        <div className="card error">{error.message}</div>
+      </>
+    );
+  }
+
   return (
-    <Placeholder title="Данные" step="шаг 2">
-      Загрузка CSV из MT5, результат проверки validate и свечной график.
-    </Placeholder>
+    <>
+      <h1>Данные</h1>
+      <p className="lead">
+        Экспорт баров из MetaTrader 5 в папке <code>{config.dataDir}</code>.
+        Время в файлах — время сервера брокера ({config.brokerTimeZone}),
+        внутри программы оно хранится в UTC.
+      </p>
+      <DataWorkspace
+        files={listSeriesFiles(config)}
+        symbols={SYMBOLS}
+        timeframes={TIMEFRAMES}
+        brokerTimeZone={config.brokerTimeZone}
+      />
+    </>
   );
 }
