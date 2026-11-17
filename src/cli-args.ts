@@ -25,7 +25,9 @@ export const USAGE = `Использование:
   npm run backtest -- --strategy <имя> [--dataset dev|test|holdout] [--i-understand-holdout]
 
 Стратегии: ${STRATEGY_NAMES.join(", ")}
-Набор данных по умолчанию: dev`;
+Набор данных по умолчанию: dev
+Набор holdout закрыт: запуск только с флагом --i-understand-holdout.
+Запуски на test и holdout записываются в EXPERIMENTS.md.`;
 
 function isOneOf<T extends string>(
   allowed: readonly T[],

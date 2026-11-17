@@ -5,6 +5,7 @@ import {
   type SymbolName,
   type Timeframe,
 } from "../config";
+import { lowerBound } from "./bars";
 import { readAllSeries, type SeriesInput } from "./load";
 import {
   formatInZone,
@@ -139,20 +140,6 @@ export interface ValidationReport {
   readonly series: readonly SeriesReport[];
   readonly consistency: readonly ConsistencyReport[];
   readonly issues: readonly Issue[];
-}
-
-function lowerBound(bars: readonly Bar[], time: number): number {
-  let low = 0;
-  let high = bars.length;
-  while (low < high) {
-    const middle = (low + high) >>> 1;
-    if ((bars[middle] as Bar).time < time) {
-      low = middle + 1;
-    } else {
-      high = middle;
-    }
-  }
-  return low;
 }
 
 function percent(share: number): string {

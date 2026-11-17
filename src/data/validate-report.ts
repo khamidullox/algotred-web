@@ -1,4 +1,11 @@
-import { formatInZone } from "./time";
+import { DATASETS } from "../config";
+import {
+  describeSpan,
+  splitCommonRange,
+  SplitError,
+  type DatasetSplit,
+} from "./split";
+import { formatInZone, type TimeSpan } from "./time";
 import type { Issue, ValidationReport } from "./validate";
 
 function table(rows: readonly (readonly string[])[]): string[] {
@@ -34,6 +41,33 @@ function issueLines(label: string, issues: readonly Issue[]): string[] {
   return lines;
 }
 
+function datasetLines(common: TimeSpan, zone: string): string[] {
+  let split: DatasetSplit;
+  try {
+    split = splitCommonRange(common, zone);
+  } catch (error) {
+    if (error instanceof SplitError) {
+      return ["", `Наборы данных: разделить нельзя. ${error.message}`];
+    }
+    throw error;
+  }
+  return [
+    "",
+    "Наборы данных (дни сервера, обе даты включительно):",
+    ...table(
+      DATASETS.map((dataset) => {
+        const days = describeSpan(split[dataset], zone);
+        return [
+          `  ${dataset}`,
+          `${days.firstDay} — ${days.lastDay}`,
+          `${days.days} дн.`,
+          dataset === "holdout" ? "закрыт, нужен --i-understand-holdout" : "",
+        ];
+      }),
+    ),
+  ];
+}
+
 /** Plain-text report for the console. */
 export function formatValidationReport(report: ValidationReport): string {
   const zone = report.brokerTimeZone;
@@ -46,6 +80,7 @@ export function formatValidationReport(report: ValidationReport): string {
       `Общий период: с ${formatInZone(report.commonRange.start, zone, "yyyy-LL-dd")} ` +
         `до ${formatInZone(report.commonRange.end, zone, "yyyy-LL-dd")}, не включая этот день (время сервера)`,
     );
+    lines.push(...datasetLines(report.commonRange, zone));
   }
 
   lines.push("");
