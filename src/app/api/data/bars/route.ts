@@ -7,9 +7,11 @@ import {
   type SymbolName,
   type Timeframe,
 } from "../../../../config";
+import { lowerBound } from "../../../../data/bars";
+import { splitCommonRange, SplitError } from "../../../../data/split";
 import type { Bar } from "../../../../data/types";
 import type { BarsResponse, ChartBar } from "../../../_lib/api-types";
-import { getSeries } from "../../../_lib/data-store";
+import { getSeries, getValidationReport } from "../../../_lib/data-store";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +52,20 @@ export function GET(request: Request): Response {
       ? fail(404, `Нет файла ${input.file}.`)
       : fail(422, `${input.file}: ${input.formatError}.`);
   }
-  const all = input.parsed.bars;
+  // The holdout set is not shown at all (TZ section 6, decision of 2026-11-17):
+  // the chart ends where the holdout begins.
+  let all = input.parsed.bars;
+  let hiddenFrom: number | null = null;
+  const report = getValidationReport(config);
+  if (report.commonRange !== null) {
+    try {
+      const holdoutStart = splitCommonRange(report.commonRange, zone).holdout.start;
+      all = all.slice(0, lowerBound(all, holdoutStart));
+      hiddenFrom = holdoutStart / 1000;
+    } catch (error) {
+      if (!(error instanceof SplitError)) throw error;
+    }
+  }
   const total = all.length;
 
   const requested = Number(params.get("limit") ?? DEFAULT_LIMIT);
@@ -109,6 +124,7 @@ export function GET(request: Request): Response {
     total,
     offset,
     bars,
+    hiddenFrom,
   };
   return Response.json(body);
 }

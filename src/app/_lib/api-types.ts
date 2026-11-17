@@ -21,6 +21,8 @@ export interface BarsResponse {
   total: number;
   offset: number;
   bars: ChartBar[];
+  /** Start of the holdout set, UTC seconds: bars from there on are never served. Null when unknown. */
+  hiddenFrom: number | null;
 }
 
 export interface UploadResponse {
