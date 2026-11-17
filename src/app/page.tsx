@@ -1,4 +1,4 @@
-import { ConfigError, loadConfig, SYMBOLS, type Config } from "../config";
+import { ConfigError, loadConfig, type Config } from "../config";
 
 // The config is a local file the user edits by hand: read it on every request.
 export const dynamic = "force-dynamic";
@@ -26,13 +26,12 @@ function ConfigTable({ config }: { config: Config }) {
       String(config.costs.commissionPerLotRoundTrip),
     ],
     ["Проскальзывание, пипсы", String(config.costs.slippagePips)],
-    ...SYMBOLS.map((symbol): [string, string] => {
-      const swap = config.costs.swap[symbol];
-      return [
-        `Своп ${symbol}, пипсы (long / short)`,
-        `${swap.swapLongPips} / ${swap.swapShortPips}`,
-      ];
-    }),
+    ...Object.entries(config.symbols).map(([symbol, own]): [string, string] => [
+      `${symbol}: знаков ${own.digits}, контракт ${own.contractSize}, доллар — ${own.usdSide === "quote" ? "котировка" : "база"}; своп long / short, пипсы`,
+      `${own.swapLongPips} / ${own.swapShortPips}` +
+        (own.minSpreadPoints !== undefined ? `; спред не ниже ${own.minSpreadPoints} п.` : "") +
+        (own.commissionPerLotRoundTrip !== undefined ? `; комиссия ${own.commissionPerLotRoundTrip} USD/лот` : ""),
+    ]),
     ["usdExposureLimit", config.usdExposureLimit ? "включён" : "выключен"],
   ];
 

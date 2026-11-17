@@ -1,7 +1,7 @@
 import {
   ConfigError,
   loadConfig,
-  SYMBOLS,
+  symbolNames,
   TIMEFRAMES,
   type Config,
 } from "../../config";
@@ -40,7 +40,7 @@ export default async function DataPage(props: {
       </p>
       <DataWorkspace
         files={listSeriesFiles(config)}
-        symbols={SYMBOLS}
+        symbols={symbolNames(config)}
         timeframes={TIMEFRAMES}
         brokerTimeZone={config.brokerTimeZone}
         initialRunId={initialRunId}

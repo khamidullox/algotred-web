@@ -24,7 +24,7 @@ import {
   pipValueUsdPerLot,
   priceDiffToUsd,
   roundPrice,
-  SYMBOL_SPECS,
+  symbolSpec,
   usdDirection,
   type SymbolSpec,
 } from "./symbols";
@@ -479,6 +479,7 @@ export function runBacktest(input: BacktestInput): BacktestResult {
     strategy: strategy.name,
     params: strategy.params,
     executionTimeframe: execTimeframe,
+    symbols: input.data.map((data) => data.symbol),
     span,
     brokerTimeZone: zone,
     initialBalance: config.initialCapitalUsd,
@@ -516,7 +517,7 @@ function createState(
   span: TimeSpan,
   zone: string,
 ): SymbolState {
-  const spec = SYMBOL_SPECS[data.symbol];
+  const spec = symbolSpec(config, data.symbol);
   const exec = data.bars[strategy.executionTimeframe];
   const closeTimes = {} as Record<Timeframe, readonly number[]>;
   const closed = {} as Record<Timeframe, ClosedBarsView>;

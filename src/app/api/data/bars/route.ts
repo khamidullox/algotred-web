@@ -2,11 +2,10 @@ import { DateTime } from "luxon";
 import {
   ConfigError,
   loadConfig,
-  SYMBOLS,
   TIMEFRAMES,
-  type SymbolName,
   type Timeframe,
 } from "../../../../config";
+import { symbolSpec } from "../../../../engine/symbols";
 import { lowerBound } from "../../../../data/bars";
 import { splitCommonRange, SplitError } from "../../../../data/split";
 import type { Bar } from "../../../../data/types";
@@ -26,16 +25,6 @@ export function GET(request: Request): Response {
   const params = new URL(request.url).searchParams;
   const symbol = params.get("symbol") ?? "";
   const timeframe = params.get("timeframe") ?? "";
-  if (
-    !(SYMBOLS as readonly string[]).includes(symbol) ||
-    !(TIMEFRAMES as readonly string[]).includes(timeframe)
-  ) {
-    return fail(400, "Неизвестная пара или таймфрейм.");
-  }
-  const id = {
-    symbol: symbol as SymbolName,
-    timeframe: timeframe as Timeframe,
-  };
 
   let config;
   try {
@@ -44,6 +33,13 @@ export function GET(request: Request): Response {
     if (error instanceof ConfigError) return fail(500, error.message);
     throw error;
   }
+  if (
+    config.symbols[symbol] === undefined ||
+    !(TIMEFRAMES as readonly string[]).includes(timeframe)
+  ) {
+    return fail(400, "Неизвестный инструмент или таймфрейм.");
+  }
+  const id = { symbol, timeframe: timeframe as Timeframe };
   const zone = config.brokerTimeZone;
 
   const input = getSeries(config, id);
@@ -119,8 +115,7 @@ export function GET(request: Request): Response {
   const body: BarsResponse = {
     symbol: id.symbol,
     timeframe: id.timeframe,
-    // Price digits as quoted by MT5: 3 for yen pairs, 5 for the rest.
-    digits: id.symbol.endsWith("JPY") ? 3 : 5,
+    digits: symbolSpec(config, id.symbol).digits,
     total,
     offset,
     bars,

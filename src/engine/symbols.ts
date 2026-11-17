@@ -1,47 +1,31 @@
-import type { SymbolName } from "../config";
+import { symbolConfig, type Config } from "../config";
 
 export interface SymbolSpec {
-  readonly symbol: SymbolName;
-  /** Decimal places of a quote: 5 for the USD-quoted pairs, 3 for USDJPY. */
+  readonly symbol: string;
+  /** Decimal places of a quote: 5 for the USD-quoted pairs, 3 for USDJPY, 2 for gold. */
   readonly digits: number;
   /** Smallest price step; the unit of the MT5 <SPREAD> column. */
   readonly point: number;
   /** Ten points. */
   readonly pip: number;
-  /** Units of the base currency in one standard lot. */
+  /** Units of the base asset in one standard lot. */
   readonly contractSize: number;
-  /** Which side of the pair the dollar is on. */
+  /** Which side of the instrument the dollar is on. */
   readonly usdSide: "base" | "quote";
 }
 
-export const CONTRACT_SIZE = 100_000;
-
-export const SYMBOL_SPECS: Readonly<Record<SymbolName, SymbolSpec>> = {
-  EURUSD: {
-    symbol: "EURUSD",
-    digits: 5,
-    point: 0.00001,
-    pip: 0.0001,
-    contractSize: CONTRACT_SIZE,
-    usdSide: "quote",
-  },
-  GBPUSD: {
-    symbol: "GBPUSD",
-    digits: 5,
-    point: 0.00001,
-    pip: 0.0001,
-    contractSize: CONTRACT_SIZE,
-    usdSide: "quote",
-  },
-  USDJPY: {
-    symbol: "USDJPY",
-    digits: 3,
-    point: 0.001,
-    pip: 0.01,
-    contractSize: CONTRACT_SIZE,
-    usdSide: "base",
-  },
-};
+/** The spec of an instrument from the config (TZ 17): point and pip follow from the digits. */
+export function symbolSpec(config: Config, symbol: string): SymbolSpec {
+  const own = symbolConfig(config, symbol);
+  return {
+    symbol,
+    digits: own.digits,
+    point: 10 ** -own.digits,
+    pip: 10 ** -(own.digits - 1),
+    contractSize: own.contractSize,
+    usdSide: own.usdSide,
+  };
+}
 
 /** Rounds to the quote precision of the symbol: removes floating-point noise after price arithmetic. */
 export function roundPrice(spec: SymbolSpec, price: number): number {
@@ -50,8 +34,8 @@ export function roundPrice(spec: SymbolSpec, price: number): number {
 }
 
 /**
- * USD value of a one-pip move for one lot. Fixed (10 USD) for the USD-quoted
- * pairs; for USDJPY the JPY amount is converted at `price` (TZ 7.4).
+ * USD value of a one-pip move for one lot. Fixed for USD-quoted instruments;
+ * for USD-based pairs the quote-currency amount is converted at `price` (TZ 7.4).
  */
 export function pipValueUsdPerLot(spec: SymbolSpec, price: number): number {
   const quoteValue = spec.pip * spec.contractSize;

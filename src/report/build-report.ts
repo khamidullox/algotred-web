@@ -95,7 +95,7 @@ export function buildReport({ run, stress, exposureFlipped }: ReportInput): Repo
   const initial = run.initialBalance;
   const afterCosts = computeMetrics(trades, initial, NET);
   const beforeCosts = computeMetrics(trades, initial, GROSS);
-  const bySymbol = breakdown(trades, initial, (trade) => trade.symbol, ["EURUSD", "GBPUSD", "USDJPY"]);
+  const bySymbol = breakdown(trades, initial, (trade) => trade.symbol, run.symbols);
   const bootstrap = bootstrapMeanR(
     trades.map((trade) => rOf(trade)),
     BOOTSTRAP_REPEATS,

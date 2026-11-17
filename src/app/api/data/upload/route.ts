@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { ConfigError, loadConfig } from "../../../../config";
+import { ConfigError, loadConfig, symbolNames } from "../../../../config";
 import {
   detectSeriesFromFileName,
   seriesFileName,
@@ -29,11 +29,19 @@ function fail(status: number, error: string, extra: object = {}): Response {
  */
 export async function PUT(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
-  const id = detectSeriesFromFileName(params.get("name") ?? "");
+  let config;
+  try {
+    config = loadConfig();
+  } catch (error) {
+    if (error instanceof ConfigError) return fail(500, error.message);
+    throw error;
+  }
+  const symbols = symbolNames(config);
+  const id = detectSeriesFromFileName(params.get("name") ?? "", symbols);
   if (id === null) {
     return fail(
       400,
-      "По имени файла не удалось понять пару и таймфрейм. Нужны EURUSD, GBPUSD, USDJPY на D1 (Daily), H1 или M15, например EURUSD_H1.csv.",
+      `По имени файла не удалось понять инструмент и таймфрейм. Нужны ${symbols.join(", ")} на D1 (Daily), H1 или M15, например ${symbols[0]}_H1.csv. Новый инструмент сначала добавляется в config/default.json.`,
     );
   }
 
@@ -47,14 +55,6 @@ export async function PUT(request: Request): Promise<Response> {
   }
   if (bytes.length > MAX_BYTES) {
     return fail(413, "Файл больше 100 МБ: это не тот таймфрейм.");
-  }
-
-  let config;
-  try {
-    config = loadConfig();
-  } catch (error) {
-    if (error instanceof ConfigError) return fail(500, error.message);
-    throw error;
   }
 
   // Refuse anything that is not an MT5 export before it replaces good data.

@@ -7,12 +7,12 @@
   "costs": {
     "minSpreadPoints": 5,
     "commissionPerLotRoundTrip": 7,
-    "slippagePips": 0.2,
-    "swap": {
-      "EURUSD": { "swapLongPips": -1.3472, "swapShortPips": 0.0107 },
-      "GBPUSD": { "swapLongPips": -1.713, "swapShortPips": -0.2977 },
-      "USDJPY": { "swapLongPips": -1.95912, "swapShortPips": -4.0755 }
-    }
+    "slippagePips": 0.2
+  },
+  "symbols": {
+    "EURUSD": { "digits": 5, "contractSize": 100000, "usdSide": "quote", "swapLongPips": -1.3472, "swapShortPips": 0.0107 },
+    "GBPUSD": { "digits": 5, "contractSize": 100000, "usdSide": "quote", "swapLongPips": -1.713, "swapShortPips": -0.2977 },
+    "USDJPY": { "digits": 3, "contractSize": 100000, "usdSide": "base", "swapLongPips": -1.95912, "swapShortPips": -4.0755 }
   },
   "usdExposureLimit": false
 }

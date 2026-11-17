@@ -3,7 +3,7 @@ import type { Bar } from "../src/data/types";
 import { runBacktest, type SymbolData } from "../src/engine/backtest";
 import { swapNights } from "../src/engine/costs";
 import { lotsForRisk } from "../src/engine/sizing";
-import { SYMBOL_SPECS } from "../src/engine/symbols";
+import { symbolSpec } from "../src/engine/symbols";
 import type {
   BacktestResult,
   MarketContext,
@@ -30,8 +30,8 @@ import {
 const WEEK_START = "2024-05-06T00:00";
 const WEEK_BARS = 5 * 96;
 const PRICE = 1.1;
-const EURUSD = SYMBOL_SPECS.EURUSD;
-const USDJPY = SYMBOL_SPECS.USDJPY;
+const EURUSD = symbolSpec(testConfig(), "EURUSD");
+const USDJPY = symbolSpec(testConfig(), "USDJPY");
 
 /** The whole week, open to the strategy. */
 const week = { start: at(WEEK_START), end: at("2024-05-11T00:00") };

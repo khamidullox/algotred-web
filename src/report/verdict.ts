@@ -9,7 +9,6 @@ export const CRITERIA = {
   profitFactorReject: 1.0,
   drawdownContinuePct: 0.15,
   drawdownRejectPct: 0.2,
-  pairsContinue: 2,
 } as const;
 
 export type CriterionStatus = "continue" | "reject" | "between" | "unknown";
@@ -120,19 +119,23 @@ export function decide(
     status: bootstrap === null ? "unknown" : bootstrap.lower > 0 ? "continue" : "between",
   });
 
+  // TZ 10 says "plus on at least 2 of 3 pairs, minus on all three"; with a
+  // configurable set of instruments (TZ 17) that is "at least half" and "all".
+  const total = bySymbol.length;
+  const needed = Math.max(1, Math.ceil(total / 2));
   const positive = bySymbol.filter((row) => row.metrics.totalUsd > 0).length;
   const negative = bySymbol.filter((row) => row.metrics.totalUsd < 0).length;
   criteria.push({
-    name: "Пары",
-    value: `в плюсе ${positive}, в минусе ${negative} из ${bySymbol.length}`,
-    continueRule: `плюс минимум на ${CRITERIA.pairsContinue} из 3`,
-    rejectRule: "минус на всех трёх",
+    name: "Инструменты",
+    value: `в плюсе ${positive}, в минусе ${negative} из ${total}`,
+    continueRule: `плюс минимум на ${needed} из ${total}`,
+    rejectRule: "минус на всех",
     status:
-      bySymbol.length === 0
+      total === 0
         ? "unknown"
-        : positive >= CRITERIA.pairsContinue
+        : positive >= needed
           ? "continue"
-          : negative === 3
+          : negative === total
             ? "reject"
             : "between",
   });

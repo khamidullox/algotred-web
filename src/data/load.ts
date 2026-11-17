@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import type { Config } from "../config";
-import { ALL_SERIES, seriesFileName, seriesFilePath } from "./files";
+import { allSeries, seriesFileName, seriesFilePath } from "./files";
 import {
   decodeMt5File,
   Mt5CsvFormatError,
@@ -48,5 +48,5 @@ export function readSeriesInput(
 
 export function readAllSeries(config: Config): SeriesInput[] {
   const toUtc = createServerTimeConverter(config.brokerTimeZone);
-  return ALL_SERIES.map((id) => readSeriesInput(config, id, toUtc));
+  return allSeries(config).map((id) => readSeriesInput(config, id, toUtc));
 }

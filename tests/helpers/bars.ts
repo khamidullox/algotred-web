@@ -122,6 +122,13 @@ export function truncate(data: SymbolData, time: number, zone = ZONE): SymbolDat
   };
 }
 
+/** The three pairs of the TZ as the engine tests know them, swaps at zero. */
+export const TEST_SYMBOLS = {
+  EURUSD: { digits: 5, contractSize: 100_000, usdSide: "quote" },
+  GBPUSD: { digits: 5, contractSize: 100_000, usdSide: "quote" },
+  USDJPY: { digits: 3, contractSize: 100_000, usdSide: "base" },
+} as const;
+
 /** A config with every cost at zero; pass overrides for the costs under test. */
 export function testConfig(overrides: {
   minSpreadPoints?: number;
@@ -132,7 +139,16 @@ export function testConfig(overrides: {
   riskPerTradePct?: number;
   usdExposureLimit?: boolean;
 } = {}): Config {
-  const noSwap = { swapLongPips: 0, swapShortPips: 0 };
+  const symbols = Object.fromEntries(
+    Object.entries(TEST_SYMBOLS).map(([symbol, own]) => [
+      symbol,
+      {
+        ...own,
+        swapLongPips: overrides.swap?.[symbol]?.swapLongPips ?? 0,
+        swapShortPips: overrides.swap?.[symbol]?.swapShortPips ?? 0,
+      },
+    ]),
+  );
   return parseConfig({
     brokerTimeZone: ZONE,
     dataDir: "data/raw",
@@ -143,12 +159,8 @@ export function testConfig(overrides: {
       minSpreadPoints: overrides.minSpreadPoints ?? 0,
       commissionPerLotRoundTrip: overrides.commissionPerLotRoundTrip ?? 0,
       slippagePips: overrides.slippagePips ?? 0,
-      swap: {
-        EURUSD: overrides.swap?.EURUSD ?? noSwap,
-        GBPUSD: overrides.swap?.GBPUSD ?? noSwap,
-        USDJPY: overrides.swap?.USDJPY ?? noSwap,
-      },
     },
+    symbols,
     usdExposureLimit: overrides.usdExposureLimit ?? false,
   });
 }

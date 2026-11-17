@@ -1,5 +1,5 @@
 import { CliUsageError, parseCliArgs, USAGE } from "./cli-args";
-import { ConfigError, loadConfig, type Config } from "./config";
+import { ConfigError, loadConfig, symbolNames, type Config } from "./config";
 import { readAllSeries } from "./data/load";
 import {
   assertDatasetAccess,
@@ -86,7 +86,7 @@ function backtest(
   const finishedAt = Date.now();
 
   const run = toSavedRun(result, args.dataset, config, finishedAt);
-  const files = saveRun(run, config.reportsDir);
+  const files = saveRun(run, config);
   const built = buildReport({ run, stress, exposureFlipped });
   const markdown = formatReport(built);
   saveReport(built, markdown, files.directory);
@@ -106,7 +106,15 @@ function backtest(
       minSpreadPoints: config.costs.minSpreadPoints,
       commissionPerLotRoundTrip: config.costs.commissionPerLotRoundTrip,
       slippagePips: config.costs.slippagePips,
-      swap: JSON.stringify(config.costs.swap),
+      symbols: symbolNames(config).join(", "),
+      swapPipsLongShort: JSON.stringify(
+        Object.fromEntries(
+          Object.entries(config.symbols).map(([symbol, own]) => [
+            symbol,
+            [own.swapLongPips, own.swapShortPips],
+          ]),
+        ),
+      ),
       usdExposureLimit: run.usdExposureLimit,
     },
     metrics: {

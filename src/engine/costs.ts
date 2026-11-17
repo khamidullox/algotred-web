@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import type { Config, SymbolName } from "../config";
+import { symbolConfig, type Config, type SymbolName } from "../config";
 import type { Bar } from "../data/types";
 import type { SymbolSpec } from "./symbols";
 import type { Direction } from "./types";
@@ -22,12 +22,14 @@ export function costSettings(
   multiplier = 1,
 ): CostSettings {
   const { costs } = config;
+  const own = symbolConfig(config, symbol);
   return {
-    minSpreadPoints: costs.minSpreadPoints,
-    commissionPerLotRoundTrip: costs.commissionPerLotRoundTrip,
+    minSpreadPoints: own.minSpreadPoints ?? costs.minSpreadPoints,
+    commissionPerLotRoundTrip:
+      own.commissionPerLotRoundTrip ?? costs.commissionPerLotRoundTrip,
     slippagePips: costs.slippagePips,
-    swapLongPips: costs.swap[symbol].swapLongPips,
-    swapShortPips: costs.swap[symbol].swapShortPips,
+    swapLongPips: own.swapLongPips,
+    swapShortPips: own.swapShortPips,
     multiplier,
   };
 }
@@ -99,7 +101,7 @@ export function swapPips(
 
 /** True when at least one swap setting is not zero (TZ 7.3: otherwise the report warns). */
 export function swapConfigured(config: Config): boolean {
-  return Object.values(config.costs.swap).some(
-    (swap) => swap.swapLongPips !== 0 || swap.swapShortPips !== 0,
+  return Object.values(config.symbols).some(
+    (own) => own.swapLongPips !== 0 || own.swapShortPips !== 0,
   );
 }

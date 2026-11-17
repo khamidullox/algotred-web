@@ -1,10 +1,5 @@
 import { DateTime } from "luxon";
-import {
-  SYMBOLS,
-  type Config,
-  type SymbolName,
-  type Timeframe,
-} from "../config";
+import type { Config, SymbolName, Timeframe } from "../config";
 import { lowerBound } from "./bars";
 import { readAllSeries, type SeriesInput } from "./load";
 import {
@@ -675,7 +670,8 @@ export function validateSeries(
     ["M15", "H1"],
     ["H1", "D1"],
   ];
-  for (const symbol of SYMBOLS) {
+  const symbols = [...new Set(inputs.map((input) => input.id.symbol))];
+  for (const symbol of symbols) {
     for (const [lowerTf, higherTf] of pairs) {
       const find = (timeframe: Timeframe): SeriesInput | undefined =>
         inputs.find(

@@ -196,6 +196,8 @@ export interface BacktestResult {
   readonly strategy: string;
   readonly params: Readonly<Record<string, ParamValue>>;
   readonly executionTimeframe: Timeframe;
+  /** Instruments the run was given, in config order. */
+  readonly symbols: readonly SymbolName[];
   readonly span: TimeSpan;
   readonly brokerTimeZone: string;
   readonly initialBalance: number;

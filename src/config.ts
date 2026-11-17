@@ -4,7 +4,6 @@ import { IANAZone } from "luxon";
 import { z } from "zod";
 
 // Fixed by the TZ (sections 5, 6, 8). Not configurable on purpose.
-export const SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY"] as const;
 export const TIMEFRAMES = ["D1", "H1", "M15"] as const;
 export const DATASETS = ["dev", "test", "holdout"] as const;
 export const STRATEGY_NAMES = [
@@ -21,7 +20,8 @@ export const STRATEGY_NAMES = [
   "RectangleV1",
 ] as const;
 
-export type SymbolName = (typeof SYMBOLS)[number];
+/** An instrument name as MT5 writes it, e.g. EURUSD or XAUUSD. The set comes from the config (TZ 17). */
+export type SymbolName = string;
 export type Timeframe = (typeof TIMEFRAMES)[number];
 export type Dataset = (typeof DATASETS)[number];
 export type StrategyName = (typeof STRATEGY_NAMES)[number];
@@ -34,10 +34,25 @@ function isNamedIanaZone(value: string): boolean {
   return !/^[+-]/.test(value) && IANAZone.isValidZone(value);
 }
 
-const swapSchema = z.strictObject({
+/**
+ * One instrument. `digits` gives the point (10^-digits) and the pip (10 points);
+ * `usdSide` says how a result in the quote currency becomes USD: "quote" for
+ * EURUSD or XAUUSD (already USD), "base" for USDJPY or USDCAD (divide by the
+ * price). Crosses without USD on either side are not supported.
+ */
+const symbolSchema = z.strictObject({
+  digits: z.number().int().min(0).max(8),
+  contractSize: z.number().positive(),
+  usdSide: z.enum(["quote", "base"]),
+  /** Pips per night, signed as MT5 shows them: negative is paid. */
   swapLongPips: z.number(),
   swapShortPips: z.number(),
+  /** Per-instrument overrides of the cost defaults in `costs`. */
+  minSpreadPoints: z.number().nonnegative().optional(),
+  commissionPerLotRoundTrip: z.number().nonnegative().optional(),
 });
+
+export type SymbolConfig = z.infer<typeof symbolSchema>;
 
 export const configSchema = z.strictObject({
   brokerTimeZone: z.string().refine(isNamedIanaZone, {
@@ -51,12 +66,17 @@ export const configSchema = z.strictObject({
     minSpreadPoints: z.number().nonnegative(),
     commissionPerLotRoundTrip: z.number().nonnegative(),
     slippagePips: z.number().nonnegative(),
-    swap: z.strictObject({
-      EURUSD: swapSchema,
-      GBPUSD: swapSchema,
-      USDJPY: swapSchema,
-    }),
   }),
+  symbols: z
+    .record(
+      z.string().regex(/^[A-Z0-9]{3,12}$/, {
+        error: "symbol names are upper-case letters and digits, e.g. EURUSD",
+      }),
+      symbolSchema,
+    )
+    .refine((symbols) => Object.keys(symbols).length > 0, {
+      error: "at least one symbol is required",
+    }),
   usdExposureLimit: z.boolean(),
 });
 
@@ -64,6 +84,19 @@ export type Config = z.infer<typeof configSchema>;
 
 export class ConfigError extends Error {
   override name = "ConfigError";
+}
+
+/** Instrument names in config order. */
+export function symbolNames(config: Config): string[] {
+  return Object.keys(config.symbols);
+}
+
+export function symbolConfig(config: Config, symbol: string): SymbolConfig {
+  const found = config.symbols[symbol];
+  if (found === undefined) {
+    throw new ConfigError(`Symbol ${symbol} is not in the config`);
+  }
+  return found;
 }
 
 export function parseConfig(raw: unknown, source = "config"): Config {

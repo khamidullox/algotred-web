@@ -119,6 +119,7 @@ describe("decodeMt5File", () => {
 });
 
 describe("detectSeriesFromFileName", () => {
+  const THREE = ["EURUSD", "GBPUSD", "USDJPY"];
   it.each([
     ["EURUSD_H1.csv", "EURUSD", "H1"],
     ["EURUSD_H1_201501050000_202611160000.csv", "EURUSD", "H1"],
@@ -126,7 +127,15 @@ describe("detectSeriesFromFileName", () => {
     ["usdjpy_m15_201501020900_202611160000.CSV", "USDJPY", "M15"],
     ["C:\\exports\\USDJPY_D1.csv", "USDJPY", "D1"],
   ])("recognises %s", (name, symbol, timeframe) => {
-    expect(detectSeriesFromFileName(name)).toEqual({ symbol, timeframe });
+    expect(detectSeriesFromFileName(name, THREE)).toEqual({ symbol, timeframe });
+  });
+
+  it("accepts an instrument once it is in the configured list", () => {
+    expect(detectSeriesFromFileName("XAUUSD_H1.csv", THREE)).toBeNull();
+    expect(detectSeriesFromFileName("XAUUSD_H1.csv", [...THREE, "XAUUSD"])).toEqual({
+      symbol: "XAUUSD",
+      timeframe: "H1",
+    });
   });
 
   it.each([
@@ -137,6 +146,6 @@ describe("detectSeriesFromFileName", () => {
     "EURUSD_H1.txt",
     "../EURUSD_H1_extra.csv",
   ])("rejects %s", (name) => {
-    expect(detectSeriesFromFileName(name)).toBeNull();
+    expect(detectSeriesFromFileName(name, THREE)).toBeNull();
   });
 });

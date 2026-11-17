@@ -292,6 +292,7 @@ describe("buildReport and formatReport", () => {
     strategy: "TrendD1",
     params: { entryLookback: 55 },
     executionTimeframe: "H1",
+    symbols: ["EURUSD", "GBPUSD", "USDJPY"],
     span: { start: at("2024-05-06T00:00"), end: at("2024-05-11T00:00") },
     brokerTimeZone: "Europe/Athens",
     initialBalance: 10_000,

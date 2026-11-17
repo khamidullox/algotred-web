@@ -52,14 +52,14 @@ export function toSavedRun(
 }
 
 /** Writes run.json and trades.csv into `<reportsDir>/<dataset>/<time>_<strategy>/`. */
-export function saveRun(run: SavedRun, reportsDir: string): RunLocation {
+export function saveRun(run: SavedRun, config: Config): RunLocation {
   const id = runId(run);
-  const directory = path.resolve(reportsDir, id);
+  const directory = path.resolve(config.reportsDir, id);
   mkdirSync(directory, { recursive: true });
   const runFile = path.join(directory, "run.json");
   const tradesFile = path.join(directory, "trades.csv");
   writeFileSync(runFile, JSON.stringify(run, null, 2));
-  writeFileSync(tradesFile, tradesToCsv(run.trades, run.brokerTimeZone));
+  writeFileSync(tradesFile, tradesToCsv(run.trades, run.brokerTimeZone, config));
   return { id, directory, runFile, tradesFile };
 }
 

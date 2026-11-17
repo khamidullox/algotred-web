@@ -1,6 +1,7 @@
 import { DateTime } from "luxon";
+import type { Config } from "../config";
 import type { Trade } from "../engine/types";
-import { SYMBOL_SPECS } from "../engine/symbols";
+import { symbolSpec } from "../engine/symbols";
 
 /** Column order of trades.csv. Prices in the symbol's digits, money in cents, times both server and UTC. */
 export const TRADE_CSV_COLUMNS = [
@@ -43,8 +44,13 @@ function csvCell(value: string | number): string {
   return /[",;\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
-export function tradeRow(trade: Trade, index: number, zone: string): string[] {
-  const spec = SYMBOL_SPECS[trade.symbol];
+export function tradeRow(
+  trade: Trade,
+  index: number,
+  zone: string,
+  config: Config,
+): string[] {
+  const spec = symbolSpec(config, trade.symbol);
   const price = (value: number | null): string =>
     value === null ? "" : value.toFixed(spec.digits);
   const server = (utcMs: number): string =>
@@ -89,10 +95,16 @@ export function tradeRow(trade: Trade, index: number, zone: string): string[] {
 }
 
 /** The trade list as CSV text with a header, one trade per line, CRLF line ends. */
-export function tradesToCsv(trades: readonly Trade[], zone: string): string {
+export function tradesToCsv(
+  trades: readonly Trade[],
+  zone: string,
+  config: Config,
+): string {
   const lines = [
     TRADE_CSV_COLUMNS.join(","),
-    ...trades.map((trade, index) => tradeRow(trade, index, zone).map(csvCell).join(",")),
+    ...trades.map((trade, index) =>
+      tradeRow(trade, index, zone, config).map(csvCell).join(","),
+    ),
   ];
   return `${lines.join("\r\n")}\r\n`;
 }

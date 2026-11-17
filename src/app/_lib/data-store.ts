@@ -2,7 +2,7 @@
 // Nothing here computes anything about the market: it reads files and calls the engine.
 import { statSync } from "node:fs";
 import type { Config, SymbolName, Timeframe } from "../../config";
-import { ALL_SERIES, seriesFileName, seriesFilePath } from "../../data/files";
+import { allSeries, seriesFileName, seriesFilePath } from "../../data/files";
 import { readSeriesInput, type SeriesInput } from "../../data/load";
 import type { SeriesId } from "../../data/types";
 import { validateData, type ValidationReport } from "../../data/validate";
@@ -26,7 +26,7 @@ function signature(config: Config, id: SeriesId): string {
 }
 
 export function listSeriesFiles(config: Config): SeriesFile[] {
-  return ALL_SERIES.map((id) => {
+  return allSeries(config).map((id) => {
     const base = {
       symbol: id.symbol,
       timeframe: id.timeframe,
@@ -75,7 +75,7 @@ export function getValidationReport(config: Config): ValidationReport {
   const key = [
     config.brokerTimeZone,
     config.dataDir,
-    ...ALL_SERIES.map((id) => signature(config, id)),
+    ...allSeries(config).map((id) => signature(config, id)),
   ].join("|");
   if (reportCache?.key === key) {
     return reportCache.report;
