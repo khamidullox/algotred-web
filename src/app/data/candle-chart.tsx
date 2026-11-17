@@ -53,7 +53,8 @@ export function CandleChart({
       if (disposed) return;
       const border = cssVar("--border");
       const chart = library.createChart(element, {
-        autoSize: true,
+        width: element.clientWidth,
+        height: element.clientHeight,
         layout: {
           background: { type: library.ColorType.Solid, color: cssVar("--surface") },
           textColor: cssVar("--text"),
@@ -63,7 +64,20 @@ export function CandleChart({
         timeScale: { borderColor: border, timeVisible: intraday, secondsVisible: false },
         localization: { locale: "ru-RU" },
       });
-      remove = () => chart.remove();
+      // The library keeps the bar spacing when the chart is resized, so a chart
+      // fitted while the page was narrower would leave empty space on the left.
+      // Resize it by hand and fit all loaded bars again every time.
+      const observer = new ResizeObserver(() => {
+        const { clientWidth, clientHeight } = element;
+        if (clientWidth === 0 || clientHeight === 0) return;
+        chart.resize(clientWidth, clientHeight);
+        chart.timeScale().fitContent();
+      });
+      observer.observe(element);
+      remove = () => {
+        observer.disconnect();
+        chart.remove();
+      };
 
       const series = chart.addSeries(library.CandlestickSeries, {
         priceFormat: { type: "price", precision: digits, minMove: 10 ** -digits },
