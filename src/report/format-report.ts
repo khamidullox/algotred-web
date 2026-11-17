@@ -154,6 +154,35 @@ export function formatReport(report: Report): string {
     );
   }
 
+  section("Ход цены внутри сделки: MAE и MFE");
+  if (report.excursions === null || report.excursions === undefined) {
+    lines.push("Для этого прогона не записано: он сделан до того, как движок стал считать MAE/MFE.");
+  } else {
+    const rows: ReadonlyArray<readonly [string, typeof report.excursions.all]> = [
+      ["Все сделки", report.excursions.all],
+      ["Прибыльные", report.excursions.wins],
+      ["Убыточные", report.excursions.losses],
+    ];
+    lines.push(
+      ...mdTable(
+        ["", "Сделок", "Медиана MAE, R", "Медиана MFE, R", "MFE ≥ 0.5R", "MFE ≥ 1R", "MAE ≥ 0.5R"],
+        rows.map(([label, stats]) => [
+          label,
+          String(stats.trades),
+          stats.medianMaeR === null ? "—" : stats.medianMaeR.toFixed(2),
+          stats.medianMfeR === null ? "—" : stats.medianMfeR.toFixed(2),
+          pct(stats.mfeAtLeastHalfR),
+          pct(stats.mfeAtLeast1R),
+          pct(stats.maeAtLeastHalfR),
+        ]),
+      ),
+    );
+    lines.push(
+      "",
+      "MAE — максимальный ход против позиции, MFE — в её пользу, в долях риска. Считается по экстремумам свечей на той стороне, где позиция закрывается (Bid для покупки, Ask для продажи); у стопа MAE равен фактическому убытку, у тейка MFE — фактической прибыли.",
+    );
+  }
+
   section("Лимит по доллару (раздел 7.5)");
   lines.push(
     ...metricsRows([

@@ -218,6 +218,58 @@ export function isFridayAfternoonLondon(trade: Trade): boolean {
   return local.weekday === 5 && local.hour * 60 + local.minute > 12 * 60;
 }
 
+export interface ExcursionStats {
+  readonly trades: number;
+  readonly medianMaeR: number | null;
+  readonly medianMfeR: number | null;
+  /** Share of trades whose favourable excursion reached at least 0.5R / 1R. */
+  readonly mfeAtLeastHalfR: number | null;
+  readonly mfeAtLeast1R: number | null;
+  /** Share of trades whose adverse excursion reached at least 0.5R. */
+  readonly maeAtLeastHalfR: number | null;
+}
+
+export interface Excursions {
+  readonly all: ExcursionStats;
+  readonly wins: ExcursionStats;
+  readonly losses: ExcursionStats;
+}
+
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1
+    ? (sorted[middle] as number)
+    : ((sorted[middle - 1] as number) + (sorted[middle] as number)) / 2;
+}
+
+export function excursionStats(trades: readonly Trade[]): ExcursionStats {
+  const count = trades.length;
+  const share = (test: (trade: Trade) => boolean): number | null =>
+    count === 0 ? null : trades.filter(test).length / count;
+  return {
+    trades: count,
+    medianMaeR: median(trades.map((trade) => trade.maeR)),
+    medianMfeR: median(trades.map((trade) => trade.mfeR)),
+    mfeAtLeastHalfR: share((trade) => trade.mfeR >= 0.5),
+    mfeAtLeast1R: share((trade) => trade.mfeR >= 1),
+    maeAtLeastHalfR: share((trade) => trade.maeR >= 0.5),
+  };
+}
+
+/** MAE/MFE of all trades, wins and losses; null when the run predates the excursion fields. */
+export function excursions(trades: readonly Trade[]): Excursions | null {
+  if (trades.some((trade) => typeof trade.maeR !== "number" || typeof trade.mfeR !== "number")) {
+    return null;
+  }
+  return {
+    all: excursionStats(trades),
+    wins: excursionStats(trades.filter((trade) => trade.netPnlUsd > 0)),
+    losses: excursionStats(trades.filter((trade) => trade.netPnlUsd <= 0)),
+  };
+}
+
 export interface Bootstrap {
   readonly repeats: number;
   readonly seed: number;

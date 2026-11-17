@@ -195,6 +195,55 @@ export function ReportView({ id, report }: { id: string; report: Report }) {
         )}
       </dl>
 
+      <h2>Ход цены внутри сделки: MAE и MFE</h2>
+      {report.excursions === null || report.excursions === undefined ? (
+        <p className="muted">
+          Для этого прогона не записано: он сделан до того, как движок стал считать MAE/MFE.
+        </p>
+      ) : (
+        <>
+          <div className="card table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Сделок</th>
+                  <th>Медиана MAE, R</th>
+                  <th>Медиана MFE, R</th>
+                  <th>MFE ≥ 0.5R</th>
+                  <th>MFE ≥ 1R</th>
+                  <th>MAE ≥ 0.5R</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(
+                  [
+                    ["Все сделки", report.excursions.all],
+                    ["Прибыльные", report.excursions.wins],
+                    ["Убыточные", report.excursions.losses],
+                  ] as const
+                ).map(([label, stats]) => (
+                  <tr key={label}>
+                    <th scope="row">{label}</th>
+                    <td>{stats.trades}</td>
+                    <td>{stats.medianMaeR === null ? "—" : stats.medianMaeR.toFixed(2)}</td>
+                    <td>{stats.medianMfeR === null ? "—" : stats.medianMfeR.toFixed(2)}</td>
+                    <td>{pct(stats.mfeAtLeastHalfR)}</td>
+                    <td>{pct(stats.mfeAtLeast1R)}</td>
+                    <td>{pct(stats.maeAtLeastHalfR)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="muted">
+            MAE — максимальный ход против позиции, MFE — в её пользу, в долях риска, по экстремумам
+            свечей на стороне закрытия (Bid для покупки, Ask для продажи); у стопа MAE равен
+            фактическому убытку, у тейка MFE — фактической прибыли.
+          </p>
+        </>
+      )}
+
       <h2>Лимит по доллару</h2>
       <MetricsTable
         rows={[

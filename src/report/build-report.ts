@@ -7,6 +7,7 @@ import {
   breakdown,
   computeMetrics,
   costTotals,
+  excursions,
   GROSS,
   hourUtc,
   inCustomerWindow,
@@ -20,6 +21,7 @@ import {
   type Bootstrap,
   type BreakdownRow,
   type CostTotals,
+  type Excursions,
   type MetricsBlock,
 } from "./metrics";
 import type { SavedRun } from "./save-run";
@@ -59,6 +61,8 @@ export interface Report {
   readonly withoutFridayAfternoon: MetricsBlock;
   readonly withoutBoth: MetricsBlock;
   readonly bootstrap: Bootstrap | null;
+  /** MAE/MFE in R for all trades, wins and losses; null for runs saved before the fields existed. */
+  readonly excursions: Excursions | null;
   /** The run repeated with spread, commission and slippage doubled. */
   readonly stress: { readonly costMultiplier: number; readonly afterCosts: MetricsBlock; readonly trades: number };
   /** The run repeated with usdExposureLimit flipped, so both settings are shown (TZ 7.5). */
@@ -151,6 +155,7 @@ export function buildReport({ run, stress, exposureFlipped }: ReportInput): Repo
       initial,
     ),
     bootstrap,
+    excursions: excursions(trades),
     stress: {
       costMultiplier: stress.costMultiplier,
       afterCosts: computeMetrics(stress.trades, initial),

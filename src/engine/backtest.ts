@@ -6,6 +6,7 @@ import { ClosedBarsView } from "./closed-bars";
 import {
   commissionUsd,
   costSettings,
+  spreadOf,
   swapConfigured,
   swapNights,
   swapPips,
@@ -22,6 +23,7 @@ import { lotsForRisk, riskAtStopUsd } from "./sizing";
 import {
   pipValueUsdPerLot,
   priceDiffToUsd,
+  roundPrice,
   SYMBOL_SPECS,
   usdDirection,
   type SymbolSpec,
@@ -72,6 +74,10 @@ interface Position {
   readonly takeProfit: number | null;
   readonly stopDistance: number;
   readonly lots: number;
+  /** Worst price seen against the position (Bid for a buy, Ask for a sell). */
+  worst: number;
+  /** Best price seen in favour of the position, same side. */
+  best: number;
 }
 
 interface SymbolState {
@@ -162,6 +168,14 @@ export function runBacktest(input: BacktestInput): BacktestResult {
     const toUsd = (diff: number): number =>
       priceDiffToUsd(spec, diff, position.lots, rate);
 
+    // Excursions: the bar extremes while open, capped at the realised exit on
+    // the side the trade was closed on (a stop never "went" beyond the stop).
+    let maePrice = Math.max(0, sign * (position.entry.price - position.worst));
+    let mfePrice = Math.max(0, sign * (position.best - position.entry.price));
+    const realised = sign * (fill.price - position.entry.price);
+    if (exitReason === "stop") maePrice = Math.max(0, -realised);
+    if (exitReason === "take") mfePrice = Math.max(0, realised);
+
     const grossPnlUsd = toUsd(sign * (fill.raw - position.entry.raw));
     const spreadCostUsd = toUsd(position.entry.spread + fill.spread);
     const slippageCostUsd = toUsd(position.entry.slippage + fill.slippage);
@@ -201,6 +215,10 @@ export function runBacktest(input: BacktestInput): BacktestResult {
       exitPrice: fill.price,
       exitReason,
       nights,
+      maePrice,
+      mfePrice,
+      maeR: maePrice / position.stopDistance,
+      mfeR: mfePrice / position.stopDistance,
       grossPnlUsd,
       spreadCostUsd,
       slippageCostUsd,
@@ -318,12 +336,24 @@ export function runBacktest(input: BacktestInput): BacktestResult {
       takeProfit: levels.takeProfit,
       stopDistance: levels.stopDistance,
       lots,
+      worst: entry.price,
+      best: entry.price,
     };
   };
 
   const insideBar = (state: SymbolState, bar: Bar): void => {
     const position = state.position;
     if (position === null) return;
+    // Track the excursions on the side the position is closed on: a buy is
+    // sold at the Bid, a sell is bought back at the Ask.
+    if (position.direction === "BUY") {
+      position.worst = Math.min(position.worst, bar.low);
+      position.best = Math.max(position.best, bar.high);
+    } else {
+      const spread = spreadOf(state.spec, bar, state.costs);
+      position.worst = Math.max(position.worst, roundPrice(state.spec, bar.high + spread));
+      position.best = Math.min(position.best, roundPrice(state.spec, bar.low + spread));
+    }
     const hit = checkStops(
       state.spec,
       position.direction,

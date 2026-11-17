@@ -6,6 +6,7 @@ import {
   bootstrapMeanR,
   breakdown,
   computeMetrics,
+  excursions,
   GROSS,
   hourUtc,
   inCustomerWindow,
@@ -41,6 +42,10 @@ function trade(net: number, overrides: Partial<Trade> = {}): Trade {
     exitPrice: 1.1,
     exitReason: "strategy",
     nights: 0,
+    maePrice: 0.001,
+    mfePrice: 0.001,
+    maeR: 0.5,
+    mfeR: 0.5,
     grossPnlUsd: net + 1,
     spreadCostUsd: 1,
     slippageCostUsd: 0,
@@ -153,6 +158,36 @@ describe("breakdowns and time windows", () => {
     // In January London is on UTC: 2024-01-08 is a Monday.
     expect(isMondayMorningLondon(trade(0, { entryTime: Date.UTC(2024, 0, 8, 11, 59) }))).toBe(true);
     expect(isMondayMorningLondon(trade(0, { entryTime: Date.UTC(2024, 0, 8, 12, 0) }))).toBe(false);
+  });
+});
+
+describe("excursions", () => {
+  it("summarises MAE and MFE in R for all trades, wins and losses", () => {
+    const trades = [
+      trade(100, { maeR: 0.2, mfeR: 2 }),
+      trade(-50, { maeR: 1, mfeR: 1.2 }),
+      trade(-50, { maeR: 1, mfeR: 0.3 }),
+      trade(25, { maeR: 0.6, mfeR: 0.9 }),
+    ];
+    const stats = excursions(trades);
+    expect(stats?.all).toEqual({
+      trades: 4,
+      medianMaeR: 0.8,
+      medianMfeR: 1.05,
+      mfeAtLeastHalfR: 0.75,
+      mfeAtLeast1R: 0.5,
+      maeAtLeastHalfR: 0.75,
+    });
+    expect(stats?.wins.trades).toBe(2);
+    expect(stats?.losses.mfeAtLeast1R).toBe(0.5);
+    expect(stats?.losses.medianMfeR).toBe(0.75);
+  });
+
+  it("is null for a run saved before the fields existed, and empty-safe", () => {
+    const { maeR: _dropped, ...old } = trade(1);
+    void _dropped;
+    expect(excursions([old as Trade])).toBeNull();
+    expect(excursions([])?.all.medianMaeR).toBeNull();
   });
 });
 

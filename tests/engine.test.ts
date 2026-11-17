@@ -519,6 +519,65 @@ describe("position rules", () => {
   });
 });
 
+describe("maximum adverse and favourable excursion", () => {
+  const base = flatBars("M15", WEEK_START, WEEK_BARS, PRICE);
+
+  it("measures the extremes on the Bid for a buy, including the entry bar", () => {
+    // Entry 1.10000 at 10:15 (20-pip stop). 10:15 dips to 1.0990, 11:00 reaches
+    // 1.1030, the strategy leaves at the 12:00 open at 1.1010.
+    let m15 = withBar(base, indexAt(base, "2024-05-06T10:15"), { low: 1.099 });
+    m15 = withBar(m15, indexAt(m15, "2024-05-06T11:00"), { high: 1.103 });
+    m15 = withBar(m15, indexAt(m15, "2024-05-06T12:00"), { open: 1.101, high: 1.101, low: 1.101, close: 1.101 });
+    const trade = only(
+      run(symbolData("EURUSD", m15), scripted({ "2024-05-06T10:15": buy(0.002), "2024-05-06T12:00": exit() })),
+    );
+    expect(trade.exitPrice).toBe(1.101);
+    expect(trade.maePrice).toBeCloseTo(0.001, 9);
+    expect(trade.mfePrice).toBeCloseTo(0.003, 9);
+    expect(trade.maeR).toBeCloseTo(0.5, 9);
+    expect(trade.mfeR).toBeCloseTo(1.5, 9);
+  });
+
+  it("caps the adverse excursion of a stopped trade at the realised loss", () => {
+    // The stop bar's low overshoots the stop by 30 pips: the loss is still 1R.
+    const m15 = withBar(base, indexAt(base, "2024-05-06T11:00"), { low: 1.095 });
+    const trade = only(
+      run(symbolData("EURUSD", m15), scripted({ "2024-05-06T10:00": buy(0.002) })),
+    );
+    expect(trade.exitReason).toBe("stop");
+    expect(trade.maeR).toBeCloseTo(1, 9);
+    // A gap beyond the stop is a real loss and is counted in full.
+    const gapped = withBar(base, indexAt(base, "2024-05-06T11:00"), { open: 1.09, high: 1.0905, low: 1.0895, close: 1.09 });
+    expect(only(run(symbolData("EURUSD", gapped), scripted({ "2024-05-06T10:00": buy(0.002) }))).maeR).toBeCloseTo(5, 9);
+  });
+
+  it("caps the favourable excursion of a take at the realised gain", () => {
+    const m15 = withBar(base, indexAt(base, "2024-05-06T12:00"), { high: 1.109 });
+    const trade = only(
+      run(symbolData("EURUSD", m15), scripted({ "2024-05-06T10:00": buy(0.002, 2) })),
+    );
+    expect(trade.exitReason).toBe("take");
+    expect(trade.mfeR).toBeCloseTo(2, 9);
+    expect(trade.maeR).toBe(0);
+  });
+
+  it("measures a sell on the Ask, so the spread counts against it", () => {
+    // 1-pip spread. Sell at 1.10000; the 11:00 bar's Bid high is 1.1009, Ask 1.1010.
+    const withSpread = flatBars("M15", WEEK_START, WEEK_BARS, PRICE, 10);
+    const m15 = withBar(withSpread, indexAt(withSpread, "2024-05-06T11:00"), { high: 1.1009, low: 1.0985 });
+    const trade = only(
+      run(
+        symbolData("EURUSD", m15),
+        scripted({ "2024-05-06T10:00": sell(0.002), "2024-05-06T12:00": exit() }),
+      ),
+    );
+    expect(trade.exitReason).toBe("strategy");
+    expect(trade.maePrice).toBeCloseTo(0.001, 9);
+    // Favourable: lowest Ask 1.0985 + 0.0001 = 1.0986, 14 pips below the entry.
+    expect(trade.mfePrice).toBeCloseTo(0.0014, 9);
+  });
+});
+
 describe("several pairs on one account", () => {
   const eurusd = symbolData(
     "EURUSD",

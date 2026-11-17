@@ -132,6 +132,19 @@ export interface Trade {
   readonly exitReason: ExitReason;
   /** Server-time rollovers the position was held through (Saturday and Sunday nights do not count). */
   readonly nights: number;
+  /**
+   * Maximum adverse excursion: the furthest the price moved against the fill
+   * while the position was open, in price units, measured on bar extremes at
+   * the side the position is closed on (Bid for a buy, Ask for a sell). For a
+   * stop exit it is the realised loss, never the bar's overshoot beyond it.
+   */
+  readonly maePrice: number;
+  /** Maximum favourable excursion, same conventions; for a take exit it is the realised gain. */
+  readonly mfePrice: number;
+  /** maePrice / stopDistance. */
+  readonly maeR: number;
+  /** mfePrice / stopDistance. */
+  readonly mfeR: number;
   /** The same fills with spread, slippage, commission and swap at zero. */
   readonly grossPnlUsd: number;
   readonly spreadCostUsd: number;
