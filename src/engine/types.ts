@@ -39,6 +39,8 @@ export interface OpenPosition {
 export interface MarketContext {
   readonly symbol: SymbolName;
   readonly spec: SymbolSpec;
+  /** Broker server time zone, for strategies that print times the way MT5 shows them. */
+  readonly zone: string;
   /** Close time of the bar that has just closed, UTC ms. Nothing after it is visible. */
   readonly now: number;
   bars(timeframe: Timeframe): ClosedBars;

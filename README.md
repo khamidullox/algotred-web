@@ -9,7 +9,7 @@ npm install
 npm test                                              # тесты
 npm run typecheck                                     # проверка типов
 npm run validate                                      # проверка CSV из data/raw
-npm run backtest -- --strategy TrendD1 --dataset dev  # бэктест (BreakoutRetestV1 — шаг 7, пока нет)
+npm run backtest -- --strategy TrendD1 --dataset dev  # бэктест; стратегии: TrendD1, BreakoutRetestV1-A, BreakoutRetestV1-B
 npm run dev                                           # сайт на http://localhost:3000
 ```
 

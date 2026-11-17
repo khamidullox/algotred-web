@@ -471,6 +471,7 @@ function createState(
     ctx: {
       symbol: data.symbol,
       spec,
+      zone,
       get now() {
         return state.now;
       },
