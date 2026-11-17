@@ -35,6 +35,11 @@ export interface BreakoutRetestOptions {
    * this many ATR(14); null keeps the V1 rules.
    */
   readonly minStopAtr: number | null;
+  /**
+   * Stage 2 (TZ 16.3): move the stop to the entry once the trade has been
+   * this many R in profit at a bar close; null keeps the V1 rules.
+   */
+  readonly breakevenAtR: number | null;
 }
 
 interface Setup {
@@ -174,6 +179,7 @@ function createInstance(
       ...(options.minStopAtr === null
         ? {}
         : { minStopDistance: options.minStopAtr * current.atr }),
+      ...(options.breakevenAtR === null ? {} : { breakevenAtR: options.breakevenAtR }),
       // The entry must be the M15 that opens right after the confirmation;
       // a weekend or any other gap in between cancels the signal (decision of 2026-11-17).
       expectedEntryTime: ctx.now,
@@ -243,6 +249,7 @@ export function createBreakoutRetest(options: BreakoutRetestOptions): Strategy {
       cancelOnGapAfterConfirmation: true,
       trendFilter: options.trendFilter ? `SMA(${BREAKOUT_RETEST.trendSmaPeriod}) H1` : "none",
       minStopAtr: options.minStopAtr ?? "none",
+      breakevenAtR: options.breakevenAtR ?? "none",
       executionTimeframe: "M15",
     },
     executionTimeframe: "M15",
@@ -264,15 +271,25 @@ export const breakoutRetestV1A = createBreakoutRetest({
   name: "BreakoutRetestV1-A",
   trendFilter: false,
   minStopAtr: null,
+  breakevenAtR: null,
 });
 export const breakoutRetestV1B = createBreakoutRetest({
   name: "BreakoutRetestV1-B",
   trendFilter: true,
   minStopAtr: null,
+  breakevenAtR: null,
 });
 /** Stage 2, TZ 16.2: V1-A with trades whose stop is tighter than 0.5 x ATR(14) skipped. */
 export const breakoutRetestV2MinStop = createBreakoutRetest({
   name: "BreakoutRetestV2-minstop",
   trendFilter: false,
   minStopAtr: 0.5,
+  breakevenAtR: null,
+});
+/** Stage 2, TZ 16.3: V1-A with the stop moved to the entry once the trade has been +1R at a bar close. */
+export const breakoutRetestV2Breakeven = createBreakoutRetest({
+  name: "BreakoutRetestV2-breakeven",
+  trendFilter: false,
+  minStopAtr: null,
+  breakevenAtR: 1,
 });

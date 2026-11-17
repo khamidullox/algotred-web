@@ -6,6 +6,7 @@ import type { Bar } from "../src/data/types";
 import {
   breakoutRetestV1A,
   breakoutRetestV1B,
+  breakoutRetestV2Breakeven,
   breakoutRetestV2MinStop,
   inSession,
 } from "../src/strategies/breakout-retest-v1";
@@ -347,5 +348,42 @@ describe("BreakoutRetestV2-minstop", () => {
     expect(breakoutRetestV2MinStop.name).toBe("BreakoutRetestV2-minstop");
     expect(breakoutRetestV2MinStop.params.minStopAtr).toBe(0.5);
     expect(breakoutRetestV2MinStop.params.trendFilter).toBe("none");
+  });
+});
+
+describe("BreakoutRetestV2-breakeven", () => {
+  it("moves the stop to the entry after +1R and exits there on the pullback", () => {
+    // Standard pattern (entry 1.2010, stop 1.20029, 7.1 pips). Hour 3 reaches
+    // 1.2018 (+11 pips) and closes; hour 4 falls back to the entry.
+    const bars = quiet();
+    longPattern(bars, BREAKOUT);
+    const m = (delta: number): number => P + delta;
+    hour(bars, "2024-05-07T15:00", [
+      [m(0.0013), m(0.0018), m(0.0012), m(0.0016)],
+      [m(0.0016), m(0.0017), m(0.0014), m(0.0015)],
+      [m(0.0015), m(0.0016), m(0.0014), m(0.0015)],
+      [m(0.0015), m(0.0016), m(0.0014), m(0.0015)],
+    ]);
+    hour(bars, "2024-05-07T16:00", [
+      [m(0.0015), m(0.0015), m(0.0009), m(0.0011)],
+      [m(0.0011), m(0.0012), m(0.001), m(0.0011)],
+      [m(0.0011), m(0.0012), m(0.001), m(0.0011)],
+      [m(0.0011), m(0.0012), m(0.001), m(0.0011)],
+    ]);
+    const v1 = run(bars, breakoutRetestV1A);
+    expect(v1.trades[0]?.exitReason).toBe("take");
+    const v2 = run(bars, breakoutRetestV2Breakeven);
+    const trade = v2.trades[0] as Trade;
+    expect(trade.exitReason).toBe("breakeven");
+    expect(trade.exitPrice).toBe(1.201);
+    expect(trade.breakevenTime).toBe(at("2024-05-07T15:15"));
+    expect(trade.stopAtExit).toBe(1.201);
+    expect(trade.netPnlUsd).toBe(0);
+  });
+
+  it("declares the rule", () => {
+    expect(breakoutRetestV2Breakeven.name).toBe("BreakoutRetestV2-breakeven");
+    expect(breakoutRetestV2Breakeven.params.breakevenAtR).toBe(1);
+    expect(breakoutRetestV1A.params.breakevenAtR).toBe("none");
   });
 });

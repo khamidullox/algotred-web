@@ -13,6 +13,8 @@ export const STRATEGY_NAMES = [
   "BreakoutRetestV1-B",
   // Stage 2 (TZ section 16): V1-A plus a minimum stop distance.
   "BreakoutRetestV2-minstop",
+  // Stage 2 (TZ 16.3): V1-A with the stop moved to the entry after +1R.
+  "BreakoutRetestV2-breakeven",
 ] as const;
 
 export type SymbolName = (typeof SYMBOLS)[number];

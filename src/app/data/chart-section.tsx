@@ -26,6 +26,7 @@ const EXIT_LABELS: Record<ChartTrade["exitReason"], string> = {
   take: "тейк",
   strategy: "правило",
   "end-of-data": "конец данных",
+  breakeven: "безубыток",
 };
 
 /** `dd.MM.yyyy HH:mm` in the given IANA zone, like MT5 shows it. */

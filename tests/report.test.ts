@@ -41,6 +41,8 @@ function trade(net: number, overrides: Partial<Trade> = {}): Trade {
     exitTime: entryTime + 3_600_000,
     exitPrice: 1.1,
     exitReason: "strategy",
+    stopAtExit: 1.098,
+    breakevenTime: null,
     nights: 0,
     maePrice: 0.001,
     mfePrice: 0.001,

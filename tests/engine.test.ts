@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Bar } from "../src/data/types";
 import { runBacktest, type SymbolData } from "../src/engine/backtest";
 import { swapNights } from "../src/engine/costs";
 import { lotsForRisk } from "../src/engine/sizing";
@@ -595,6 +596,83 @@ describe("maximum adverse and favourable excursion", () => {
     expect(trade.maePrice).toBeCloseTo(0.001, 9);
     // Favourable: lowest Ask 1.0985 + 0.0001 = 1.0986, 14 pips below the entry.
     expect(trade.mfePrice).toBeCloseTo(0.0014, 9);
+  });
+});
+
+describe("breakeven stop", () => {
+  const base = flatBars("M15", WEEK_START, WEEK_BARS, PRICE);
+  const armed = (): Extract<StrategyAction, { kind: "entry" }> => ({
+    ...(buy(0.002) as Extract<StrategyAction, { kind: "entry" }>),
+    breakevenAtR: 1,
+  });
+
+  /** Keeps the bars between `from` and `to` (server time) a little in favour of a buy. */
+  const park = (bars: Bar[], from: string, to: string, price: number): Bar[] =>
+    bars.map((item) =>
+      item.time >= at(from) && item.time < at(to)
+        ? { ...item, open: price, high: price, low: price, close: price }
+        : item,
+    );
+
+  it("moves the stop to the entry after a bar that closed at least +1R in profit", () => {
+    // Entry 1.10000, stop 1.09800. 11:00 reaches 1.1021 (+1R and a bit) and
+    // survives; the price then holds above the entry until 12:00 falls to
+    // 1.0990, which would be a loss without the move.
+    let m15 = withBar(base, indexAt(base, "2024-05-06T11:00"), { high: 1.1021 });
+    m15 = park(m15, "2024-05-06T11:15", "2024-05-06T12:00", 1.1005);
+    m15 = withBar(m15, indexAt(m15, "2024-05-06T12:00"), { low: 1.099 });
+    const trade = only(run(symbolData("EURUSD", m15), scripted({ "2024-05-06T10:00": armed() })));
+    expect(trade.exitReason).toBe("breakeven");
+    expect(trade.exitTime).toBe(at("2024-05-06T12:00"));
+    expect(trade.exitPrice).toBe(1.1);
+    expect(trade.stopLoss).toBe(1.098);
+    expect(trade.stopAtExit).toBe(1.1);
+    expect(trade.breakevenTime).toBe(at("2024-05-06T11:15"));
+    expect(trade.netPnlUsd).toBe(0);
+  });
+
+  it("does not move the stop inside the bar that reached the level", () => {
+    // 11:00 both reaches +1R and falls through the original stop: a full loss.
+    const m15 = withBar(base, indexAt(base, "2024-05-06T11:00"), { high: 1.1021, low: 1.0979 });
+    const trade = only(run(symbolData("EURUSD", m15), scripted({ "2024-05-06T10:00": armed() })));
+    expect(trade.exitReason).toBe("stop");
+    expect(trade.rMultiple).toBeCloseTo(-1, 6);
+    expect(trade.breakevenTime).toBeNull();
+  });
+
+  it("leaves the take in place and the stop untouched below the level", () => {
+    let m15 = withBar(base, indexAt(base, "2024-05-06T11:00"), { high: 1.1015 }); // +0.75R only
+    m15 = withBar(m15, indexAt(m15, "2024-05-06T12:00"), { low: 1.099 });
+    const trade = only(run(symbolData("EURUSD", m15), scripted({ "2024-05-06T10:00": armed() })));
+    expect(trade.exitReason).toBe("end-of-data");
+    expect(trade.breakevenTime).toBeNull();
+    let taken = withBar(base, indexAt(base, "2024-05-06T11:00"), { high: 1.1021 });
+    taken = park(taken, "2024-05-06T11:15", "2024-05-06T13:00", 1.1005);
+    taken = withBar(taken, indexAt(taken, "2024-05-06T13:00"), { high: 1.105 });
+    const trade2 = only(
+      run(symbolData("EURUSD", taken), scripted({ "2024-05-06T10:00": { ...armed(), takeProfit: { rMultiple: 2 } } })),
+    );
+    expect(trade2.exitReason).toBe("take");
+    expect(trade2.breakevenTime).toBe(at("2024-05-06T11:15"));
+  });
+
+  it("works for a sell with the Ask", () => {
+    // Sell 1.10000 (1-pip spread). 11:00 low 1.0978: Ask 1.0979 = +2.1R; 12:00 high 1.0999: Ask 1.1000 = the entry.
+    const withSpread = flatBars("M15", WEEK_START, WEEK_BARS, PRICE, 10);
+    let m15 = withBar(withSpread, indexAt(withSpread, "2024-05-06T11:00"), { low: 1.0978 });
+    // Between the move and the pullback the Bid sits a little below the entry
+    // (Ask 1.0996 < 1.1000), so the moved stop is not touched yet.
+    m15 = park(m15, "2024-05-06T11:15", "2024-05-06T12:00", 1.0995).map((item) =>
+      item.time >= at("2024-05-06T11:15") && item.time < at("2024-05-06T12:00")
+        ? { ...item, spreadPoints: 10 }
+        : item,
+    );
+    m15 = withBar(m15, indexAt(m15, "2024-05-06T12:00"), { high: 1.0999 });
+    const trade = only(
+      run(symbolData("EURUSD", m15), scripted({ "2024-05-06T10:00": { ...armed(), direction: "SELL" } })),
+    );
+    expect(trade.exitReason).toBe("breakeven");
+    expect(trade.exitPrice).toBe(1.1);
   });
 });
 

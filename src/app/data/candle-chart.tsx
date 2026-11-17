@@ -10,6 +10,7 @@ const EXIT_LABELS: Record<ChartTrade["exitReason"], string> = {
   take: "тейк",
   strategy: "выход",
   "end-of-data": "конец данных",
+  breakeven: "безубыток",
 };
 
 function cssVar(name: string): string {

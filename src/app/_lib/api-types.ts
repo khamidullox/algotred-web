@@ -53,7 +53,7 @@ export interface RunSummary {
   lastDay: string;
 }
 
-export type ChartTradeExit = "stop" | "take" | "strategy" | "end-of-data";
+export type ChartTradeExit = "stop" | "take" | "strategy" | "end-of-data" | "breakeven";
 
 /** What the chart needs to draw one trade. Times in UTC seconds, like ChartBar. */
 export interface ChartTrade {

@@ -77,6 +77,12 @@ export interface Signal {
    */
   readonly minStopDistance?: number;
   /**
+   * Once the favourable excursion has reached this many R at the close of a
+   * bar, the stop moves to the entry price for the following bars (TZ 16.3).
+   * The move never happens inside the bar that reached the level.
+   */
+  readonly breakevenAtR?: number;
+  /**
    * Open time (UTC ms) the next bar must have for the signal to be filled;
    * when the next bar opens at any other time (a gap, the weekend) the signal
    * is dropped. Strategies whose entry must follow the signal bar at once set
@@ -114,7 +120,8 @@ export interface Strategy {
   create(symbol: SymbolName): StrategyInstance;
 }
 
-export type ExitReason = "stop" | "take" | "strategy" | "end-of-data";
+/** `breakeven` is a stop hit after it had been moved to the entry price. */
+export type ExitReason = "stop" | "take" | "strategy" | "end-of-data" | "breakeven";
 
 export interface Trade {
   readonly symbol: SymbolName;
@@ -135,6 +142,10 @@ export interface Trade {
   readonly exitTime: number;
   readonly exitPrice: number;
   readonly exitReason: ExitReason;
+  /** The stop in force when the position closed: the original one, or the entry price after a breakeven move. */
+  readonly stopAtExit: number;
+  /** Close time of the bar after which the stop was moved to breakeven, or null. */
+  readonly breakevenTime: number | null;
   /** Server-time rollovers the position was held through (Saturday and Sunday nights do not count). */
   readonly nights: number;
   /**

@@ -70,7 +70,9 @@ interface Position {
   readonly signalTime: number;
   readonly entryTime: number;
   readonly entry: Fill;
-  readonly stopLoss: number;
+  /** The original stop; `stopLoss` is the one in force. */
+  readonly initialStopLoss: number;
+  stopLoss: number;
   readonly takeProfit: number | null;
   readonly stopDistance: number;
   readonly lots: number;
@@ -78,6 +80,10 @@ interface Position {
   worst: number;
   /** Best price seen in favour of the position, same side. */
   best: number;
+  /** Favourable excursion, in R, at which the stop moves to the entry; null when the rule is off. */
+  readonly breakevenAtR: number | null;
+  /** Close time of the bar after which the stop was moved, or null. */
+  breakevenTime: number | null;
 }
 
 interface SymbolState {
@@ -206,14 +212,17 @@ export function runBacktest(input: BacktestInput): BacktestResult {
       signalTime: position.signalTime,
       entryTime: position.entryTime,
       entryPrice: position.entry.price,
-      stopLoss: position.stopLoss,
+      stopLoss: position.initialStopLoss,
       takeProfit: position.takeProfit,
       stopDistance: position.stopDistance,
       lots: position.lots,
       riskUsd,
       exitTime,
       exitPrice: fill.price,
-      exitReason,
+      exitReason:
+        exitReason === "stop" && position.breakevenTime !== null ? "breakeven" : exitReason,
+      stopAtExit: position.stopLoss,
+      breakevenTime: position.breakevenTime,
       nights,
       maePrice,
       mfePrice,
@@ -346,12 +355,15 @@ export function runBacktest(input: BacktestInput): BacktestResult {
       signalTime,
       entryTime: bar.time,
       entry,
+      initialStopLoss: levels.stopLoss,
       stopLoss: levels.stopLoss,
       takeProfit: levels.takeProfit,
       stopDistance: levels.stopDistance,
       lots,
       worst: entry.price,
       best: entry.price,
+      breakevenAtR: action.breakevenAtR ?? null,
+      breakevenTime: null,
     };
   };
 
@@ -378,6 +390,17 @@ export function runBacktest(input: BacktestInput): BacktestResult {
     );
     if (hit !== null) {
       closePosition(state, hit.fill, bar.time, hit.reason);
+      return;
+    }
+    // Breakeven (TZ 16.3): the order of moves inside a bar is unknown, so the
+    // stop moves only after a bar that reached the level has closed.
+    if (position.breakevenAtR !== null && position.breakevenTime === null) {
+      const sign = position.direction === "BUY" ? 1 : -1;
+      const favourable = sign * (position.best - position.entry.price);
+      if (favourable >= position.breakevenAtR * position.stopDistance - state.spec.point / 100) {
+        position.stopLoss = position.entry.price;
+        position.breakevenTime = bar.time + execStep;
+      }
     }
   };
 

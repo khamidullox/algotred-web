@@ -3,6 +3,7 @@ import type { Strategy } from "../engine/types";
 import {
   breakoutRetestV1A,
   breakoutRetestV1B,
+  breakoutRetestV2Breakeven,
   breakoutRetestV2MinStop,
 } from "./breakout-retest-v1";
 import { trendD1 } from "./trend-d1";
@@ -12,4 +13,5 @@ export const STRATEGIES: Readonly<Record<StrategyName, Strategy>> = {
   "BreakoutRetestV1-A": breakoutRetestV1A,
   "BreakoutRetestV1-B": breakoutRetestV1B,
   "BreakoutRetestV2-minstop": breakoutRetestV2MinStop,
+  "BreakoutRetestV2-breakeven": breakoutRetestV2Breakeven,
 };
