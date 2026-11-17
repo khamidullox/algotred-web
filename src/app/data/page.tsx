@@ -11,7 +11,12 @@ import { DataWorkspace } from "./data-workspace";
 // Files in the data directory change outside the app: read them on every request.
 export const dynamic = "force-dynamic";
 
-export default function DataPage() {
+export default async function DataPage(props: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // `/data?run=<id>` opens the page with the trades of that run on the chart.
+  const { run } = await props.searchParams;
+  const initialRunId = typeof run === "string" ? run : "";
   let config: Config;
   try {
     config = loadConfig();
@@ -38,6 +43,7 @@ export default function DataPage() {
         symbols={SYMBOLS}
         timeframes={TIMEFRAMES}
         brokerTimeZone={config.brokerTimeZone}
+        initialRunId={initialRunId}
       />
     </>
   );

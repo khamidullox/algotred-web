@@ -3,6 +3,7 @@ import path from "node:path";
 import { DateTime } from "luxon";
 import type { Config, Dataset } from "../config";
 import type { BacktestResult } from "../engine/types";
+import type { Report } from "./build-report";
 import { tradesToCsv } from "./trades-csv";
 
 export const RUN_FILE_VERSION = 1;
@@ -50,10 +51,7 @@ export function toSavedRun(
   };
 }
 
-/**
- * Writes run.json and trades.csv into `<reportsDir>/<dataset>/<time>_<strategy>/`.
- * The report of step 6 will be written next to them.
- */
+/** Writes run.json and trades.csv into `<reportsDir>/<dataset>/<time>_<strategy>/`. */
 export function saveRun(run: SavedRun, reportsDir: string): RunLocation {
   const id = runId(run);
   const directory = path.resolve(reportsDir, id);
@@ -63,4 +61,20 @@ export function saveRun(run: SavedRun, reportsDir: string): RunLocation {
   writeFileSync(runFile, JSON.stringify(run, null, 2));
   writeFileSync(tradesFile, tradesToCsv(run.trades, run.brokerTimeZone));
   return { id, directory, runFile, tradesFile };
+}
+
+export const REPORT_JSON = "report.json";
+export const REPORT_MD = "report.md";
+
+/** Writes report.json and report.md next to run.json. */
+export function saveReport(
+  report: Report,
+  markdown: string,
+  directory: string,
+): { readonly jsonFile: string; readonly markdownFile: string } {
+  const jsonFile = path.join(directory, REPORT_JSON);
+  const markdownFile = path.join(directory, REPORT_MD);
+  writeFileSync(jsonFile, JSON.stringify(report, null, 2));
+  writeFileSync(markdownFile, markdown);
+  return { jsonFile, markdownFile };
 }

@@ -13,11 +13,13 @@ export function DataWorkspace({
   symbols,
   timeframes,
   brokerTimeZone,
+  initialRunId,
 }: {
   files: SeriesFile[];
   symbols: readonly SymbolName[];
   timeframes: readonly Timeframe[];
   brokerTimeZone: string;
+  initialRunId: string;
 }) {
   const router = useRouter();
   // Bumped after an upload so that the report and the chart start from the new files.
@@ -39,6 +41,7 @@ export function DataWorkspace({
         key={`chart-${version}`}
         files={files}
         brokerTimeZone={brokerTimeZone}
+        initialRunId={initialRunId}
       />
     </>
   );

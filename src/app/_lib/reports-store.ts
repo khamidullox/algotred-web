@@ -3,7 +3,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { DATASETS, type Config, type Dataset } from "../../config";
 import { describeSpan } from "../../data/split";
-import type { SavedRun } from "../../report/save-run";
+import type { Report } from "../../report/build-report";
+import { REPORT_JSON, REPORT_MD, type SavedRun } from "../../report/save-run";
 import type { ChartTrade, RunResponse, RunSummary } from "./api-types";
 
 /** `dev/2026-11-17_12-30-00_TrendD1`; anything else is refused before touching the disk. */
@@ -50,6 +51,39 @@ export function listRuns(config: Config): RunSummary[] {
     }
   }
   return runs.sort((a, b) => b.finishedAt - a.finishedAt);
+}
+
+/** The report of a run, or null when the run has none (an older run or an unknown id). */
+export function readReport(config: Config, id: string): Report | null {
+  if (!isRunId(id)) return null;
+  const file = path.resolve(config.reportsDir, id, REPORT_JSON);
+  if (!existsSync(file)) return null;
+  try {
+    const report = JSON.parse(readFileSync(file, "utf8")) as Partial<Report>;
+    return report.version === 1 && report.afterCosts !== undefined ? (report as Report) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The Markdown of a report, as written by the CLI. */
+export function readReportMarkdown(config: Config, id: string): string | null {
+  if (!isRunId(id)) return null;
+  const file = path.resolve(config.reportsDir, id, REPORT_MD);
+  return existsSync(file) ? readFileSync(file, "utf8") : null;
+}
+
+export interface ReportListItem {
+  readonly summary: RunSummary;
+  readonly report: Report | null;
+}
+
+/** Every run with its report when it has one, newest first. */
+export function listReports(config: Config): ReportListItem[] {
+  return listRuns(config).map((summary) => ({
+    summary,
+    report: readReport(config, summary.id),
+  }));
 }
 
 /** The trades of one run in the shape the chart draws. Null when the id is unknown. */

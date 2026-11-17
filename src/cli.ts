@@ -13,9 +13,10 @@ import { buildSymbolData } from "./data/symbol-data";
 import { validateSeries, type ValidationReport } from "./data/validate";
 import { formatValidationReport } from "./data/validate-report";
 import { runBacktest } from "./engine/backtest";
+import { buildReport } from "./report/build-report";
 import { EXPERIMENTS_PATH, recordExperiment } from "./report/experiments";
-import { formatRunSummary } from "./report/run-summary";
-import { saveRun, toSavedRun } from "./report/save-run";
+import { formatReport, pf, pct, r } from "./report/format-report";
+import { saveReport, saveRun, toSavedRun } from "./report/save-run";
 import { STRATEGIES } from "./strategies";
 
 const EXIT_OK = 0;
@@ -72,15 +73,26 @@ function backtest(
   const started = Date.now();
   const data = buildSymbolData(inputs, report.commonRange);
   const result = runBacktest({ data, strategy, span, config });
+  // Two more runs feed the report: doubled costs (TZ 7.3) and the other
+  // setting of the dollar limit (TZ 7.5).
+  const stress = runBacktest({ data, strategy, span, config, options: { costMultiplier: 2 } });
+  const exposureFlipped = runBacktest({
+    data,
+    strategy,
+    span,
+    config,
+    options: { usdExposureLimit: !result.usdExposureLimit },
+  });
   const finishedAt = Date.now();
 
   const run = toSavedRun(result, args.dataset, config, finishedAt);
   const files = saveRun(run, config.reportsDir);
+  const built = buildReport({ run, stress, exposureFlipped });
+  const markdown = formatReport(built);
+  saveReport(built, markdown, files.directory);
 
   // The journal is written before the result is shown (TZ section 6).
-  const trades = run.trades;
-  const sum = (pick: (trade: (typeof trades)[number]) => number): number =>
-    trades.reduce((total, trade) => total + pick(trade), 0);
+  const main = built.afterCosts;
   const journaled = recordExperiment({
     finishedAt,
     strategy: args.strategy,
@@ -96,22 +108,30 @@ function backtest(
       slippagePips: config.costs.slippagePips,
       swap: JSON.stringify(config.costs.swap),
       usdExposureLimit: run.usdExposureLimit,
-      costMultiplier: run.costMultiplier,
     },
     metrics: {
-      "Сделок": trades.length,
-      "Прибыльных": trades.filter((trade) => trade.netPnlUsd > 0).length,
-      "Итог до издержек, USD": sum((trade) => trade.grossPnlUsd).toFixed(2),
-      "Итог после издержек, USD": sum((trade) => trade.netPnlUsd).toFixed(2),
-      "Баланс в конце, USD": run.finalBalance.toFixed(2),
-      "Пропущено сигналов": run.skipped.length,
+      "Вердикт": built.verdict.code,
+      "Сделок": main.trades,
+      "Прибыльных": pct(main.winRate),
+      "Средний R": r(main.meanR),
+      "Profit Factor": pf(main.profitFactor),
+      "Максимальная просадка": pct(main.maxDrawdownPct),
+      "Итог после издержек, USD": main.totalUsd.toFixed(2),
+      "Итог до издержек, USD": built.beforeCosts.totalUsd.toFixed(2),
+      "Стресс-тест, USD": built.stress.afterCosts.totalUsd.toFixed(2),
+      "95% ДИ среднего R":
+        built.bootstrap === null
+          ? "—"
+          : `${r(built.bootstrap.lower)} … ${r(built.bootstrap.upper)}`,
       "Файлы": files.id,
     },
   });
 
   console.log("");
-  console.log(formatRunSummary(run, files));
-  console.log(`Время прогона: ${((finishedAt - started) / 1000).toFixed(1)} с`);
+  console.log(markdown);
+  console.log(`Файлы прогона: ${files.directory}`);
+  console.log("  report.md, report.json — отчёт; trades.csv — сделки для ручной сверки; run.json — всё, что посчитал движок");
+  console.log(`Время прогона: ${((finishedAt - started) / 1000).toFixed(1)} с (три прогона: основной, стресс-тест, лимит по доллару)`);
   if (journaled) {
     console.log(`Запуск записан в ${EXPERIMENTS_PATH}.`);
   }

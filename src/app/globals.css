@@ -329,3 +329,33 @@ summary {
 .trades tr.focused td {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
+
+.verdict {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.verdict-continue {
+  color: var(--good);
+  border: 1px solid var(--good);
+}
+
+.verdict-reject {
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.verdict-inconclusive {
+  color: var(--muted);
+  border: 1px solid var(--muted);
+}
+
+.status-continue {
+  color: var(--good);
+}
+
+.status-reject {
+  color: var(--danger);
+}

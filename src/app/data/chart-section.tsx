@@ -54,9 +54,12 @@ function runLabel(run: RunSummary): string {
 export function ChartSection({
   files,
   brokerTimeZone,
+  initialRunId = "",
 }: {
   files: SeriesFile[];
   brokerTimeZone: string;
+  /** A run to show from the start, e.g. when coming from its report. */
+  initialRunId?: string;
 }) {
   const available = files.filter((file) => file.present);
   const first = available.find((file) => file.timeframe === "H1") ?? available[0];
@@ -68,7 +71,7 @@ export function ChartSection({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [runs, setRuns] = useState<RunSummary[]>([]);
-  const [runId, setRunId] = useState("");
+  const [runId, setRunId] = useState(initialRunId);
   const [run, setRun] = useState<RunResponse | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
 
