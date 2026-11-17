@@ -15,6 +15,8 @@ export const STRATEGY_NAMES = [
   "BreakoutRetestV2-minstop",
   // Stage 2 (TZ 16.3): V1-A with the stop moved to the entry after +1R.
   "BreakoutRetestV2-breakeven",
+  // Stage 2 (TZ 16.4): breakout and retest of a strong daily level.
+  "StrongLevelD1",
 ] as const;
 
 export type SymbolName = (typeof SYMBOLS)[number];

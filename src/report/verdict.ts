@@ -144,8 +144,9 @@ export function decide(
       ? "CONTINUE"
       : "INCONCLUSIVE";
 
-  // Section 10 is written for the BreakoutRetest family; V2 variants inherit it (TZ 16).
-  const applies = strategy.startsWith("BreakoutRetest") && dataset === "test";
+  // Section 10 is the decision table for every candidate on the test set (TZ 16);
+  // TrendD1 is the baseline and exempt (TZ 8.1).
+  const applies = strategy !== "TrendD1" && dataset === "test";
   let note: string;
   if (strategy === "TrendD1") {
     note = "К TrendD1 критерии раздела 10 не применяются: это базовая линия и проверка движка. Вердикт справочный.";
