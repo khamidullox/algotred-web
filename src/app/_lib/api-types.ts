@@ -1,6 +1,6 @@
 // Shapes shared by route handlers and client components. Types only: client
 // code must never import values from the engine, which reads the file system.
-import type { SymbolName, Timeframe } from "../../config";
+import type { Dataset, SymbolName, Timeframe } from "../../config";
 
 export interface ChartBar {
   /** Bar open time, UTC, seconds. */
@@ -35,4 +35,44 @@ export interface ApiError {
   error: string;
   exists?: boolean;
   file?: string;
+}
+
+/** One saved backtest run, as listed on the data page. */
+export interface RunSummary {
+  /** `dev/2026-11-17_12-30-00_TrendD1`: dataset and directory name. */
+  id: string;
+  strategy: string;
+  dataset: Dataset;
+  /** UTC ms. */
+  finishedAt: number;
+  trades: number;
+  /** First and last server-time days of the dataset, yyyy-MM-dd. */
+  firstDay: string;
+  lastDay: string;
+}
+
+export type ChartTradeExit = "stop" | "take" | "strategy" | "end-of-data";
+
+/** What the chart needs to draw one trade. Times in UTC seconds, like ChartBar. */
+export interface ChartTrade {
+  n: number;
+  symbol: SymbolName;
+  direction: "BUY" | "SELL";
+  entryTime: number;
+  entryPrice: number;
+  stopLoss: number;
+  takeProfit: number | null;
+  exitTime: number;
+  exitPrice: number;
+  exitReason: ChartTradeExit;
+  lots: number;
+  netPnlUsd: number;
+  rMultiple: number;
+  reason: string;
+}
+
+export interface RunResponse {
+  summary: RunSummary;
+  brokerTimeZone: string;
+  trades: ChartTrade[];
 }

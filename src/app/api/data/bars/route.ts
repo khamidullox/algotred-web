@@ -62,7 +62,17 @@ export function GET(request: Request): Response {
   let offset = lastOffset;
   const date = params.get("date");
   const rawOffset = params.get("offset");
-  if (date !== null) {
+  const around = params.get("around");
+  if (around !== null) {
+    // Centre the window on an instant (UTC seconds), e.g. the entry of a trade.
+    const seconds = Number(around);
+    if (!Number.isFinite(seconds)) {
+      return fail(400, "around должен быть временем в секундах UTC.");
+    }
+    let index = all.findIndex((bar) => bar.time >= seconds * 1000);
+    if (index === -1) index = total;
+    offset = Math.min(lastOffset, Math.max(0, index - Math.floor(limit / 2)));
+  } else if (date !== null) {
     const start = DateTime.fromISO(date, { zone });
     if (!start.isValid) {
       return fail(400, "Дата должна быть в виде ГГГГ-ММ-ДД.");

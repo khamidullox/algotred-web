@@ -1,9 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ChartBar } from "../_lib/api-types";
+import type { ChartBar, ChartTrade } from "../_lib/api-types";
 
 export type TimeMode = "server" | "utc";
+
+const EXIT_LABELS: Record<ChartTrade["exitReason"], string> = {
+  stop: "стоп",
+  take: "тейк",
+  strategy: "выход",
+  "end-of-data": "конец данных",
+};
 
 function cssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -21,8 +28,27 @@ function useColorScheme(): string {
   return scheme;
 }
 
+/** Index of the last bar that opens at or before `time` (UTC seconds), or -1. */
+function barAtOrBefore(bars: ChartBar[], time: number): number {
+  let low = 0;
+  let high = bars.length - 1;
+  let found = -1;
+  while (low <= high) {
+    const middle = (low + high) >> 1;
+    if ((bars[middle] as ChartBar).time <= time) {
+      found = middle;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return found;
+}
+
 /**
- * Candlestick chart. The library draws its time axis in UTC, so to show broker
+ * Candlestick chart with the trades of a run drawn over it: an arrow at the
+ * entry, a dot at the exit, dashed lines for the stop and the take while the
+ * position was open. The library draws its time axis in UTC, so to show broker
  * server time the bars are passed with a pre-shifted timestamp.
  */
 export function CandleChart({
@@ -30,11 +56,13 @@ export function CandleChart({
   digits,
   intraday,
   timeMode,
+  trades,
 }: {
   bars: ChartBar[];
   digits: number;
   intraday: boolean;
   timeMode: TimeMode;
+  trades: ChartTrade[];
 }) {
   const container = useRef<HTMLDivElement>(null);
   const scheme = useColorScheme();
@@ -51,6 +79,7 @@ export function CandleChart({
 
     void import("lightweight-charts").then((library) => {
       if (disposed) return;
+      type Time = import("lightweight-charts").UTCTimestamp;
       const border = cssVar("--border");
       const chart = library.createChart(element, {
         width: element.clientWidth,
@@ -83,14 +112,14 @@ export function CandleChart({
         priceFormat: { type: "price", precision: digits, minMove: 10 ** -digits },
       });
       const byTime = new Map<number, ChartBar>();
-      const shown = (bar: ChartBar): number =>
-        timeMode === "server" ? bar.serverTime : bar.time;
+      const shown = (bar: ChartBar): Time =>
+        (timeMode === "server" ? bar.serverTime : bar.time) as Time;
       try {
         series.setData(
           bars.map((bar) => {
             byTime.set(shown(bar), bar);
             return {
-              time: shown(bar) as import("lightweight-charts").UTCTimestamp,
+              time: shown(bar),
               open: bar.open,
               high: bar.high,
               low: bar.low,
@@ -105,6 +134,68 @@ export function CandleChart({
         );
         return;
       }
+
+      // Trades. Times are snapped to the loaded bar they fall into; a trade
+      // that starts or ends outside the window is drawn up to the edge.
+      const first = bars[0] as ChartBar;
+      const last = bars[bars.length - 1] as ChartBar;
+      const good = cssVar("--good");
+      const bad = cssVar("--danger");
+      const accent = cssVar("--accent");
+      const markers: import("lightweight-charts").SeriesMarker<Time>[] = [];
+      const segment = (from: Time, to: Time, price: number, color: string): void => {
+        const line = chart.addSeries(library.LineSeries, {
+          color,
+          lineWidth: 1,
+          lineStyle: library.LineStyle.Dashed,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        line.setData(
+          from === to
+            ? [{ time: from, value: price }]
+            : [
+                { time: from, value: price },
+                { time: to, value: price },
+              ],
+        );
+      };
+      for (const trade of trades) {
+        if (trade.exitTime < first.time || trade.entryTime > last.time) continue;
+        const entryIndex = trade.entryTime >= first.time ? barAtOrBefore(bars, trade.entryTime) : -1;
+        const exitIndex = trade.exitTime <= last.time ? barAtOrBefore(bars, trade.exitTime) : -1;
+        const entryBar = entryIndex === -1 ? null : (bars[entryIndex] as ChartBar);
+        const exitBar = exitIndex === -1 ? null : (bars[exitIndex] as ChartBar);
+        const buy = trade.direction === "BUY";
+        if (entryBar !== null) {
+          markers.push({
+            time: shown(entryBar),
+            position: buy ? "belowBar" : "aboveBar",
+            shape: buy ? "arrowUp" : "arrowDown",
+            color: accent,
+            text: `#${trade.n} ${buy ? "BUY" : "SELL"} ${trade.lots.toFixed(2)}`,
+          });
+        }
+        if (exitBar !== null) {
+          markers.push({
+            time: shown(exitBar),
+            position: buy ? "aboveBar" : "belowBar",
+            shape: "circle",
+            color: trade.netPnlUsd >= 0 ? good : bad,
+            text: `#${trade.n} ${EXIT_LABELS[trade.exitReason]} ${trade.rMultiple >= 0 ? "+" : ""}${trade.rMultiple.toFixed(2)}R`,
+          });
+        }
+        const from = shown(entryBar ?? first);
+        const to = shown(exitBar ?? last);
+        segment(from, to, trade.stopLoss, bad);
+        if (trade.takeProfit !== null) segment(from, to, trade.takeProfit, good);
+      }
+      if (markers.length > 0) {
+        markers.sort((a, b) => (a.time as number) - (b.time as number));
+        library.createSeriesMarkers(series, markers);
+      }
+
       chart.timeScale().fitContent();
       chart.subscribeCrosshairMove((param) => {
         setHover(typeof param.time === "number" ? (byTime.get(param.time) ?? null) : null);
@@ -115,7 +206,7 @@ export function CandleChart({
       disposed = true;
       remove?.();
     };
-  }, [bars, digits, intraday, timeMode, scheme]);
+  }, [bars, digits, intraday, timeMode, trades, scheme]);
 
   const formatTime = (bar: ChartBar): string =>
     new Date((timeMode === "server" ? bar.serverTime : bar.time) * 1000)
