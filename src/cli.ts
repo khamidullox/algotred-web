@@ -65,7 +65,7 @@ function main(argv: readonly string[]): number {
           `(${days.days} дн., дни сервера ${zone})`,
       );
       console.error(
-        "backtest: движок ещё не реализован (шаги 4–6 ТЗ). Запуск не выполнен, в EXPERIMENTS.md ничего не записано.",
+        "backtest: стратегии ещё не реализованы (шаги 5 и 7 ТЗ). Запуск не выполнен, в EXPERIMENTS.md ничего не записано.",
       );
       return EXIT_NOT_IMPLEMENTED;
     }
