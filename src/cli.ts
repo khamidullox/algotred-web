@@ -10,7 +10,11 @@ import {
   SplitError,
 } from "./data/split";
 import { buildSymbolData } from "./data/symbol-data";
-import { validateSeries, type ValidationReport } from "./data/validate";
+import {
+  skippedTimeZoneSymbols,
+  validateSeries,
+  type ValidationReport,
+} from "./data/validate";
 import { formatValidationReport } from "./data/validate-report";
 import { runBacktest } from "./engine/backtest";
 import { buildReport } from "./report/build-report";
@@ -57,13 +61,13 @@ function backtest(
 
   const zone = config.brokerTimeZone;
   const inputs = readAllSeries(config);
-  const report = validateSeries(inputs, zone);
+  const report = validateSeries(inputs, zone, skippedTimeZoneSymbols(config));
   if (!report.ok || report.commonRange === null) {
     printDataErrors(report);
     return EXIT_DATA_ERRORS;
   }
 
-  const split = splitCommonRange(report.commonRange, zone);
+  const split = splitCommonRange(report.commonRange, zone, config.datasets);
   const span = datasetSpan(split, args.dataset, access);
   const days = describeSpan(span, zone);
   console.log(
@@ -158,8 +162,12 @@ function main(argv: readonly string[]): number {
 
   switch (args.command) {
     case "validate": {
-      const report = validateSeries(readAllSeries(config), config.brokerTimeZone);
-      console.log(formatValidationReport(report));
+      const report = validateSeries(
+        readAllSeries(config),
+        config.brokerTimeZone,
+        skippedTimeZoneSymbols(config),
+      );
+      console.log(formatValidationReport(report, config.datasets));
       return report.ok ? EXIT_OK : EXIT_DATA_ERRORS;
     }
     case "backtest":

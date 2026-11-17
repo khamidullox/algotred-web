@@ -118,6 +118,34 @@ describe("splitCommonRange boundaries", () => {
   });
 });
 
+describe("splitCommonRange with boundaries frozen in the config (TZ 17.2)", () => {
+  const frozen = { testStart: "2021-12-09", holdoutStart: "2024-11-16" };
+
+  it("keeps the step-8 boundaries when the data now ends earlier", () => {
+    // The five instruments added on 2026-11-17 end on 2026-10-30.
+    const split = splitCommonRange(span("2015-02-02", "2026-10-30"), ZONE, frozen);
+    expect(describeSpan(split.dev, ZONE)).toEqual({ firstDay: "2015-02-02", lastDay: "2021-12-08", days: 2502 });
+    expect(describeSpan(split.test, ZONE)).toEqual({ firstDay: "2021-12-09", lastDay: "2024-11-15", days: 1073 });
+    expect(describeSpan(split.holdout, ZONE)).toEqual({ firstDay: "2024-11-16", lastDay: "2026-10-29", days: 713 });
+  });
+
+  it("gives the same split as the computed one on the period it was computed from", () => {
+    const common = span("2015-02-02", "2026-11-16");
+    expect(splitCommonRange(common, ZONE, frozen)).toEqual(splitCommonRange(common, ZONE));
+  });
+
+  it("refuses boundaries that leave a dataset empty or are not dates", () => {
+    expect(() => splitCommonRange(span("2022-01-01", "2026-10-30"), ZONE, frozen)).toThrow(SplitError);
+    expect(() => splitCommonRange(span("2015-02-02", "2024-11-16"), ZONE, frozen)).toThrow(SplitError);
+    expect(() =>
+      splitCommonRange(span("2015-02-02", "2026-10-30"), ZONE, { testStart: "2024-11-16", holdoutStart: "2021-12-09" }),
+    ).toThrow(SplitError);
+    expect(() =>
+      splitCommonRange(span("2015-02-02", "2026-10-30"), ZONE, { testStart: "2021-02-30", holdoutStart: "2024-11-16" }),
+    ).toThrow(SplitError);
+  });
+});
+
 describe("holdout guard", () => {
   const split = splitCommonRange(span("2023-10-03", "2026-01-01"), ZONE);
 

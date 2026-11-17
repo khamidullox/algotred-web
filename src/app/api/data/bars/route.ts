@@ -55,7 +55,7 @@ export function GET(request: Request): Response {
   const report = getValidationReport(config);
   if (report.commonRange !== null) {
     try {
-      const holdoutStart = splitCommonRange(report.commonRange, zone).holdout.start;
+      const holdoutStart = splitCommonRange(report.commonRange, zone, config.datasets).holdout.start;
       all = all.slice(0, lowerBound(all, holdoutStart));
       hiddenFrom = holdoutStart / 1000;
     } catch (error) {

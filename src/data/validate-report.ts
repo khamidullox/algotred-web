@@ -4,6 +4,7 @@ import {
   splitCommonRange,
   SplitError,
   type DatasetSplit,
+  type FrozenBoundaries,
 } from "./split";
 import { formatInZone, type TimeSpan } from "./time";
 import type { Issue, ValidationReport } from "./validate";
@@ -41,10 +42,14 @@ function issueLines(label: string, issues: readonly Issue[]): string[] {
   return lines;
 }
 
-function datasetLines(common: TimeSpan, zone: string): string[] {
+function datasetLines(
+  common: TimeSpan,
+  zone: string,
+  frozen: FrozenBoundaries | undefined,
+): string[] {
   let split: DatasetSplit;
   try {
-    split = splitCommonRange(common, zone);
+    split = splitCommonRange(common, zone, frozen);
   } catch (error) {
     if (error instanceof SplitError) {
       return ["", `Наборы данных: разделить нельзя. ${error.message}`];
@@ -53,7 +58,9 @@ function datasetLines(common: TimeSpan, zone: string): string[] {
   }
   return [
     "",
-    "Наборы данных (дни сервера, обе даты включительно):",
+    frozen === undefined
+      ? "Наборы данных (дни сервера, обе даты включительно):"
+      : "Наборы данных, границы закреплены в конфиге (дни сервера, обе даты включительно):",
     ...table(
       DATASETS.map((dataset) => {
         const days = describeSpan(split[dataset], zone);
@@ -69,7 +76,10 @@ function datasetLines(common: TimeSpan, zone: string): string[] {
 }
 
 /** Plain-text report for the console. */
-export function formatValidationReport(report: ValidationReport): string {
+export function formatValidationReport(
+  report: ValidationReport,
+  frozen?: FrozenBoundaries,
+): string {
   const zone = report.brokerTimeZone;
   const lines: string[] = [];
   lines.push(`Проверка данных. Часовой пояс сервера: ${zone}`);
@@ -80,7 +90,7 @@ export function formatValidationReport(report: ValidationReport): string {
       `Общий период: с ${formatInZone(report.commonRange.start, zone, "yyyy-LL-dd")} ` +
         `до ${formatInZone(report.commonRange.end, zone, "yyyy-LL-dd")}, не включая этот день (время сервера)`,
     );
-    lines.push(...datasetLines(report.commonRange, zone));
+    lines.push(...datasetLines(report.commonRange, zone, frozen));
   }
 
   lines.push("");

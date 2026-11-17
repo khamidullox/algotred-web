@@ -25,12 +25,30 @@ export class HoldoutGuardError extends Error {
 }
 
 /**
+ * Dataset boundaries fixed in the config (TZ 17.2): server-time dates
+ * (yyyy-MM-dd) on which `test` and `holdout` begin. Once set, adding or
+ * re-exporting files no longer moves them.
+ */
+export interface FrozenBoundaries {
+  readonly testStart: string;
+  readonly holdoutStart: string;
+}
+
+/**
  * Splits the common period of the data into dev, test and holdout.
  *
- * The holdout starts 24 calendar months before the end of the period. The days
- * before it are split 70/30 by calendar days, rounded down in favour of test.
+ * With `frozen` boundaries: dev runs from the start of the common period to
+ * `testStart`, test to `holdoutStart`, holdout to the end of the common period.
+ *
+ * Without them (TZ 6): the holdout starts 24 calendar months before the end of
+ * the period, and the days before it are split 70/30 by calendar days, rounded
+ * down in favour of test.
  */
-export function splitCommonRange(common: TimeSpan, zone: string): DatasetSplit {
+export function splitCommonRange(
+  common: TimeSpan,
+  zone: string,
+  frozen?: FrozenBoundaries,
+): DatasetSplit {
   const start = DateTime.fromMillis(common.start, { zone });
   const end = DateTime.fromMillis(common.end, { zone });
   if (
@@ -40,6 +58,29 @@ export function splitCommonRange(common: TimeSpan, zone: string): DatasetSplit {
     throw new SplitError(
       "Общий период должен начинаться и заканчиваться в начале дня сервера.",
     );
+  }
+
+  if (frozen !== undefined) {
+    const day = (iso: string): number => {
+      const parsed = DateTime.fromISO(iso, { zone });
+      if (!parsed.isValid || parsed.toFormat("yyyy-LL-dd") !== iso) {
+        throw new SplitError(`Граница набора "${iso}" должна быть датой ГГГГ-ММ-ДД.`);
+      }
+      return parsed.startOf("day").toMillis();
+    };
+    const testStart = day(frozen.testStart);
+    const holdoutStart = day(frozen.holdoutStart);
+    if (!(common.start < testStart && testStart < holdoutStart && holdoutStart < common.end)) {
+      throw new SplitError(
+        `Закреплённые границы (test с ${frozen.testStart}, holdout с ${frozen.holdoutStart}) не помещаются в общий период данных ` +
+          `${start.toFormat("yyyy-LL-dd")} — ${end.toFormat("yyyy-LL-dd")}: каждый набор должен получить хотя бы один день.`,
+      );
+    }
+    return {
+      dev: { start: common.start, end: testStart },
+      test: { start: testStart, end: holdoutStart },
+      holdout: { start: holdoutStart, end: common.end },
+    };
   }
 
   const holdoutStart = end.minus({ months: HOLDOUT_MONTHS }).startOf("day");

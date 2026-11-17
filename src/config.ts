@@ -50,6 +50,12 @@ const symbolSchema = z.strictObject({
   /** Per-instrument overrides of the cost defaults in `costs`. */
   minSpreadPoints: z.number().nonnegative().optional(),
   commissionPerLotRoundTrip: z.number().nonnegative().optional(),
+  /**
+   * false: this instrument's weekly close is reported but does not confirm or
+   * refute the server time zone, because its trading schedule differs from
+   * the FX week (TZ 17.2, gold). Default true.
+   */
+  timeZoneCheck: z.boolean().optional(),
 });
 
 export type SymbolConfig = z.infer<typeof symbolSchema>;
@@ -76,7 +82,17 @@ export const configSchema = z.strictObject({
     )
     .refine((symbols) => Object.keys(symbols).length > 0, {
       error: "at least one symbol is required",
+    })
+    .refine((symbols) => Object.values(symbols).some((own) => own.timeZoneCheck !== false), {
+      error: "at least one symbol must confirm the time zone (timeZoneCheck not false)",
     }),
+  /** Fixed dataset boundaries, server-time dates (TZ 17.2). Without them they follow the data (TZ 6). */
+  datasets: z
+    .strictObject({
+      testStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      holdoutStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    })
+    .optional(),
   usdExposureLimit: z.boolean(),
 });
 

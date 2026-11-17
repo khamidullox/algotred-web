@@ -12,7 +12,13 @@
   "symbols": {
     "EURUSD": { "digits": 5, "contractSize": 100000, "usdSide": "quote", "swapLongPips": -1.3472, "swapShortPips": 0.0107 },
     "GBPUSD": { "digits": 5, "contractSize": 100000, "usdSide": "quote", "swapLongPips": -1.713, "swapShortPips": -0.2977 },
-    "USDJPY": { "digits": 3, "contractSize": 100000, "usdSide": "base", "swapLongPips": -1.95912, "swapShortPips": -4.0755 }
+    "USDJPY": { "digits": 3, "contractSize": 100000, "usdSide": "base", "swapLongPips": -1.95912, "swapShortPips": -4.0755 },
+    "AUDUSD": { "digits": 5, "contractSize": 100000, "usdSide": "quote", "swapLongPips": -0.687, "swapShortPips": -0.216 },
+    "NZDUSD": { "digits": 5, "contractSize": 100000, "usdSide": "quote", "swapLongPips": 0.134385, "swapShortPips": -0.24284, "minSpreadPoints": 10 },
+    "USDCAD": { "digits": 5, "contractSize": 100000, "usdSide": "base", "swapLongPips": -0.26, "swapShortPips": -0.804, "minSpreadPoints": 10 },
+    "USDCHF": { "digits": 5, "contractSize": 100000, "usdSide": "base", "swapLongPips": -0.99697, "swapShortPips": -1.6822, "minSpreadPoints": 10 },
+    "XAUUSD": { "digits": 2, "contractSize": 100, "usdSide": "quote", "swapLongPips": -10.7151, "swapShortPips": -4.6917, "minSpreadPoints": 30, "commissionPerLotRoundTrip": 4, "timeZoneCheck": false }
   },
+  "datasets": { "testStart": "2021-12-09", "holdoutStart": "2024-11-16" },
   "usdExposureLimit": false
 }

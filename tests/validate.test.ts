@@ -1,3 +1,4 @@
+import { DateTime } from "luxon";
 import { describe, expect, it } from "vitest";
 import type { SeriesInput } from "../src/data/load";
 import {
@@ -126,6 +127,33 @@ describe("validateSeries time zone check", () => {
     const report = validate(makeWeeks(FIRST_MONDAY, 2));
     expect(report.timeZoneOk).toBeNull();
     expect(issuesOf(report, "time-zone").every((issue) => issue.severity === "warning")).toBe(true);
+  });
+
+  it("reports but does not gate an instrument marked timeZoneCheck: false (TZ 17.2)", () => {
+    // Gold-like: every week closes an hour early (Friday 23:00 server = 16:00 New York).
+    const set = makeWeeks(FIRST_MONDAY, WEEKS);
+    const early = (rows: SyntheticSet["m15"]): SyntheticSet["m15"] =>
+      rows.filter((row) => {
+        const friday = DateTime.fromFormat(row.date, "yyyy.LL.dd").weekday === 5;
+        return !(friday && row.time >= "23:00:00");
+      });
+    const gold = [toInput("XAUUSD", "H1", early(set.h1), ZONE), toInput("XAUUSD", "M15", early(set.m15), ZONE)];
+    const fx = [toInput("EURUSD", "H1", set.h1, ZONE), toInput("EURUSD", "M15", set.m15, ZONE)];
+
+    const gated = validateSeries([...fx, ...gold], ZONE);
+    expect(gated.ok).toBe(false);
+    expect(issuesOf(gated, "time-zone").some((issue) => issue.severity === "error")).toBe(true);
+
+    const skipped = validateSeries([...fx, ...gold], ZONE, new Set(["XAUUSD"]));
+    expect(skipped.timeZoneOk).toBe(true);
+    const goldIssues = issuesOf(skipped, "time-zone");
+    expect(goldIssues.map((issue) => [issue.symbol, issue.severity])).toEqual([
+      ["XAUUSD", "warning"],
+      ["XAUUSD", "warning"],
+    ]);
+    expect(goldIssues[0]?.message).toContain("timeZoneCheck: false");
+    // The early close shows up as a gap, not as an error.
+    expect(skipped.issues.filter((issue) => issue.severity === "error")).toEqual([]);
   });
 });
 

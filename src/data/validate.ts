@@ -393,6 +393,8 @@ interface Usable {
 export function validateSeries(
   inputs: readonly SeriesInput[],
   brokerTimeZone: string,
+  /** Instruments whose weekly close is reported but not used to judge the time zone (TZ 17.2). */
+  skipTimeZoneCheck: ReadonlySet<string> = new Set(),
 ): ValidationReport {
   const zone = brokerTimeZone;
   const issues: Issue[] = [];
@@ -617,7 +619,18 @@ export function validateSeries(
       );
     }
 
-    if (weeks !== null) {
+    if (weeks !== null && skipTimeZoneCheck.has(input.id.symbol)) {
+      const share = weeks.total === 0 ? 0 : weeks.closeOk / weeks.total;
+      if (share < TIME_ZONE_PASS_SHARE) {
+        add(
+          "warning",
+          "time-zone",
+          input,
+          `${file}: неделя закрывается в пятницу 17:00 по Нью-Йорку в ${weeks.closeOk} из ${weeks.total} недель (${percent(share)}). ` +
+            `Для этого инструмента расписание отличается от валютной недели, часовой пояс по нему не проверяется (timeZoneCheck: false).`,
+        );
+      }
+    } else if (weeks !== null) {
       if (weeks.total < MIN_WEEKS_FOR_TIME_ZONE_CHECK) {
         add(
           "warning",
@@ -734,5 +747,14 @@ export function validateSeries(
 
 /** Reads the nine files named in the TZ from the data directory and checks them. */
 export function validateData(config: Config): ValidationReport {
-  return validateSeries(readAllSeries(config), config.brokerTimeZone);
+  return validateSeries(readAllSeries(config), config.brokerTimeZone, skippedTimeZoneSymbols(config));
+}
+
+/** Instruments the config marks with `timeZoneCheck: false`. */
+export function skippedTimeZoneSymbols(config: Config): Set<string> {
+  return new Set(
+    Object.entries(config.symbols)
+      .filter(([, own]) => own.timeZoneCheck === false)
+      .map(([symbol]) => symbol),
+  );
 }
