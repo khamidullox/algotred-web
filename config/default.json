@@ -5,13 +5,13 @@
   "initialCapitalUsd": 10000,
   "riskPerTradePct": 0.5,
   "costs": {
-    "minSpreadPoints": 0,
-    "commissionPerLotRoundTrip": 0,
+    "minSpreadPoints": 5,
+    "commissionPerLotRoundTrip": 7,
     "slippagePips": 0.2,
     "swap": {
-      "EURUSD": { "swapLongPips": 0, "swapShortPips": 0 },
-      "GBPUSD": { "swapLongPips": 0, "swapShortPips": 0 },
-      "USDJPY": { "swapLongPips": 0, "swapShortPips": 0 }
+      "EURUSD": { "swapLongPips": -1.3472, "swapShortPips": 0.0107 },
+      "GBPUSD": { "swapLongPips": -1.713, "swapShortPips": -0.2977 },
+      "USDJPY": { "swapLongPips": -1.95912, "swapShortPips": -4.0755 }
     }
   },
   "usdExposureLimit": false

@@ -1,6 +1,6 @@
 import { TIMEFRAMES, type Config, type SymbolName, type Timeframe } from "../config";
 import { lowerBound } from "../data/bars";
-import { nextZoneDay, type TimeSpan } from "../data/time";
+import { formatInZone, nextZoneDay, type TimeSpan } from "../data/time";
 import { MINUTE_MS, TIMEFRAME_MINUTES, type Bar } from "../data/types";
 import { ClosedBarsView } from "./closed-bars";
 import {
@@ -251,6 +251,16 @@ export function runBacktest(input: BacktestInput): BacktestResult {
 
     const { spec, costs } = state;
     const { direction } = action;
+    if (action.expectedEntryTime !== undefined && bar.time !== action.expectedEntryTime) {
+      skip(
+        state,
+        direction,
+        signalTime,
+        "gap-after-signal",
+        `следующая свеча открылась ${formatInZone(bar.time, zone)} вместо ${formatInZone(action.expectedEntryTime, zone)} (время сервера)`,
+      );
+      return;
+    }
     if (usdExposureLimit) {
       const holder = usdExposureTaken(state, direction);
       if (holder !== null) {

@@ -159,6 +159,9 @@ function createInstance(variant: Variant, ctxZone: () => string): StrategyInstan
       stopLoss: { price: buy ? retest.extreme - buffer : retest.extreme + buffer },
       takeProfit: { rMultiple: BREAKOUT_RETEST.takeProfitR },
       maxStopDistance: BREAKOUT_RETEST.maxStopAtr * current.atr,
+      // The entry must be the M15 that opens right after the confirmation;
+      // a weekend or any other gap in between cancels the signal (decision of 2026-11-17).
+      expectedEntryTime: ctx.now,
       reason:
         `L ${price(current.level)}; ATR(14) ${price(current.atr)}; ` +
         `пробой ${serverTime(current.breakoutTime)} close ${price(current.breakoutClose)}; ` +
@@ -222,6 +225,7 @@ export function createBreakoutRetestV1(variant: Variant): Strategy {
       maxStopAtr: BREAKOUT_RETEST.maxStopAtr,
       takeProfitR: BREAKOUT_RETEST.takeProfitR,
       sessions: "08:00-17:00 Europe/London or America/New_York, inclusive",
+      cancelOnGapAfterConfirmation: true,
       trendFilter: variant === "B" ? `SMA(${BREAKOUT_RETEST.trendSmaPeriod}) H1` : "none",
       executionTimeframe: "M15",
     },

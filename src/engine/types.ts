@@ -71,6 +71,13 @@ export interface Signal {
    * stop) is larger than this, in price units. BreakoutRetestV1 rule 7.
    */
   readonly maxStopDistance?: number;
+  /**
+   * Open time (UTC ms) the next bar must have for the signal to be filled;
+   * when the next bar opens at any other time (a gap, the weekend) the signal
+   * is dropped. Strategies whose entry must follow the signal bar at once set
+   * it to the close time of the signal bar.
+   */
+  readonly expectedEntryTime?: number;
   readonly reason: string;
 }
 
@@ -141,6 +148,7 @@ export interface Trade {
 export type SkipReason =
   | "position-open"
   | "no-next-bar"
+  | "gap-after-signal"
   | "usd-exposure"
   | "invalid-levels"
   | "stop-too-far"

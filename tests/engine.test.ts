@@ -484,6 +484,27 @@ describe("position rules", () => {
     expect(result.skipped.map((skip) => skip.reason)).toEqual(["invalid-levels"]);
   });
 
+  it("drops a signal whose next bar does not open at the expected time", () => {
+    // No bars from 10:15 to 11:45: after the 10:00 close the next bar is 12:00.
+    const gapped = base.filter(
+      (item) => item.time < at("2024-05-06T10:15") || item.time >= at("2024-05-06T12:00"),
+    );
+    const strict = (): StrategyAction => ({
+      ...(buy(0.002) as Extract<StrategyAction, { kind: "entry" }>),
+      expectedEntryTime: at("2024-05-06T10:15"),
+    });
+    const result = run(symbolData("EURUSD", gapped), scripted({ "2024-05-06T10:15": strict() }));
+    expect(result.trades).toEqual([]);
+    expect(result.skipped).toMatchObject([
+      { reason: "gap-after-signal", signalTime: at("2024-05-06T10:15") },
+    ]);
+    expect(result.skipped[0]?.detail).toContain("12:00");
+    // The same signal on the unbroken series is filled at 10:15.
+    const filled = run(symbolData("EURUSD", base), scripted({ "2024-05-06T10:15": strict() }));
+    expect(filled.trades).toHaveLength(1);
+    expect(filled.trades[0]?.entryTime).toBe(at("2024-05-06T10:15"));
+  });
+
   it("the second trade is sized from the balance after the first", () => {
     const m15 = withBar(base, indexAt(base, "2024-05-06T12:00"), { high: 1.1045 });
     const result = run(

@@ -239,6 +239,39 @@ describe("BreakoutRetestV1 rules", () => {
     longPattern(bars, BREAKOUT);
     expect(run(bars).trades).toHaveLength(1);
   });
+
+  it("cancels a Friday-night signal whose next bar is the Monday open", () => {
+    // Weekdays only, like real data. Breakout Friday 21:00 server (14:00 New York),
+    // retest 22:00, and only the fourth M15 of the 23:00 hour confirms: the signal
+    // appears at 00:00 Saturday, the next bar opens Monday 00:00.
+    const bars = quiet().filter(
+      (item) => DateTime.fromMillis(item.time, { zone: ZONE }).weekday <= 5,
+    );
+    const m = (delta: number): number => P + delta;
+    hour(bars, "2024-05-10T21:00", [
+      [m(0), m(0.0004), m(-0.0005), m(0.0003)],
+      [m(0.0003), m(0.0019), m(0.0002), m(0.0006)],
+      [m(0.0006), m(0.0009), m(0.0005), m(0.0008)],
+      [m(0.0008), m(0.0012), m(0.0007), m(0.001)],
+    ]);
+    hour(bars, "2024-05-10T22:00", [
+      [m(0.001), m(0.001), m(0.0006), m(0.0007)],
+      [m(0.0007), m(0.0007), m(0.0004), m(0.0006)],
+      [m(0.0006), m(0.0008), m(0.0006), m(0.0007)],
+      [m(0.0007), m(0.0009), m(0.0006), m(0.0008)],
+    ]);
+    hour(bars, "2024-05-10T23:00", [
+      [m(0.0008), m(0.0009), m(0.0007), m(0.0008)],
+      [m(0.0008), m(0.0009), m(0.0007), m(0.0008)],
+      [m(0.0008), m(0.0009), m(0.0007), m(0.0008)],
+      [m(0.0008), m(0.0011), m(0.0007), m(0.001)],
+    ]);
+    const result = run(bars);
+    expect(result.trades).toEqual([]);
+    expect(result.skipped).toMatchObject([
+      { reason: "gap-after-signal", signalTime: at("2024-05-11T00:00") },
+    ]);
+  });
 });
 
 describe("BreakoutRetestV1-B trend filter", () => {

@@ -7,6 +7,7 @@ import type { CriterionStatus } from "./verdict";
 const SKIP_LABELS: Readonly<Record<SkipReason, string>> = {
   "position-open": "позиция уже открыта",
   "no-next-bar": "нет следующей свечи",
+  "gap-after-signal": "гэп после сигнала",
   "usd-exposure": "лимит по доллару",
   "invalid-levels": "стоп или тейк не с той стороны",
   "stop-too-far": "стоп слишком далеко",
