@@ -648,7 +648,8 @@ describe("breakeven stop", () => {
     expect(trade.breakevenTime).toBeNull();
     let taken = withBar(base, indexAt(base, "2024-05-06T11:00"), { high: 1.1021 });
     taken = park(taken, "2024-05-06T11:15", "2024-05-06T13:00", 1.1005);
-    taken = withBar(taken, indexAt(taken, "2024-05-06T13:00"), { high: 1.105 });
+    // The take bar stays above the moved stop, otherwise the stop (checked first) would win.
+    taken = withBar(taken, indexAt(taken, "2024-05-06T13:00"), { open: 1.1005, high: 1.105, low: 1.1005, close: 1.104 });
     const trade2 = only(
       run(symbolData("EURUSD", taken), scripted({ "2024-05-06T10:00": { ...armed(), takeProfit: { rMultiple: 2 } } })),
     );
@@ -667,7 +668,8 @@ describe("breakeven stop", () => {
         ? { ...item, spreadPoints: 10 }
         : item,
     );
-    m15 = withBar(m15, indexAt(m15, "2024-05-06T12:00"), { high: 1.0999 });
+    // 12:00 opens below the entry (Ask 1.0996) and its high touches it (Ask 1.1000).
+    m15 = withBar(m15, indexAt(m15, "2024-05-06T12:00"), { open: 1.0995, high: 1.0999, low: 1.0995, close: 1.0996, spreadPoints: 10 });
     const trade = only(
       run(symbolData("EURUSD", m15), scripted({ "2024-05-06T10:00": { ...armed(), direction: "SELL" } })),
     );
