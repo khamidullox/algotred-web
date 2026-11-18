@@ -18,8 +18,9 @@
     "USDCAD": { "digits": 5, "contractSize": 100000, "usdSide": "base", "swapLongPips": -0.26, "swapShortPips": -0.804, "minSpreadPoints": 10 },
     "USDCHF": { "digits": 5, "contractSize": 100000, "usdSide": "base", "swapLongPips": -0.99697, "swapShortPips": -1.6822, "minSpreadPoints": 10 },
     "XAUUSD": { "digits": 2, "contractSize": 100, "usdSide": "quote", "swapLongPips": -10.7151, "swapShortPips": -4.6917, "minSpreadPoints": 30, "commissionPerLotRoundTrip": 4, "timeZoneCheck": false },
-    "US500": { "digits": 2, "contractSize": 10, "usdSide": "quote", "commissionPerLotRoundTrip": 0, "tripleSwapDay": "friday", "timeZoneCheck": false, "swapLongPips": -13.4693, "swapShortPips": -3.663, "minSpreadPoints": 60, "slippagePoints": 24 },
-    "US30": { "digits": 2, "contractSize": 10, "usdSide": "quote", "commissionPerLotRoundTrip": 0, "tripleSwapDay": "friday", "timeZoneCheck": false, "swapLongPips": -23.2077, "swapShortPips": -99.606, "minSpreadPoints": 150, "slippagePoints": 60 }
+    "US500": { "digits": 2, "contractSize": 10, "usdSide": "quote", "commissionPerLotRoundTrip": 0, "tripleSwapDay": "friday", "timeZoneCheck": false, "swapLongPips": -13.4693, "swapShortPips": -3.663, "minSpreadPoints": 60, "slippagePoints": 24, "swapReferencePrice": 7580.9 },
+    "US30": { "digits": 2, "contractSize": 10, "usdSide": "quote", "commissionPerLotRoundTrip": 0, "tripleSwapDay": "friday", "timeZoneCheck": false, "swapLongPips": -23.2077, "swapShortPips": -99.606, "minSpreadPoints": 150, "slippagePoints": 60, "swapReferencePrice": 51788.2 },
+    "US2000": { "digits": 2, "contractSize": 10, "usdSide": "quote", "commissionPerLotRoundTrip": 0, "tripleSwapDay": "friday", "timeZoneCheck": false, "swapLongPips": -4.9956, "swapShortPips": -1.3586, "minSpreadPoints": 30, "slippagePoints": 12, "swapReferencePrice": 2811.67 }
   },
   "datasets": { "testStart": "2021-12-09", "holdoutStart": "2024-11-16" },
   "usdExposureLimit": false

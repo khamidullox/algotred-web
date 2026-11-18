@@ -70,6 +70,13 @@ const symbolSchema = z.strictObject({
    */
   tripleSwapDay: z.enum(["wednesday", "friday"]).optional(),
   /**
+   * The price at which swapLongPips/swapShortPips were quoted. When set, a
+   * trade's swap is scaled by its entry price over this price: financing is a
+   * share of the position's value, and an index that has tripled since 2015
+   * would otherwise be charged three times too much early on (TZ 17.6).
+   */
+  swapReferencePrice: z.number().positive().optional(),
+  /**
    * false: this instrument's weekly close is reported but does not confirm or
    * refute the server time zone, because its trading schedule differs from
    * the FX week (TZ 17.2, gold). Default true.

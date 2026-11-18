@@ -205,8 +205,15 @@ export function runBacktest(input: BacktestInput): BacktestResult {
       zone,
       costs.tripleSwapWeekday,
     );
+    // Financing scales with the position's value when the swap was quoted
+    // at a known price (TZ 17.6, indices); otherwise the pips are fixed.
+    const swapScale =
+      costs.swapReferencePrice === null
+        ? 1
+        : position.entry.price / costs.swapReferencePrice;
     const swapUsd =
       swapPips(position.direction, weightedNights, costs) *
+      swapScale *
       pipValueUsdPerLot(spec, rate) *
       position.lots;
     const netPnlUsd =

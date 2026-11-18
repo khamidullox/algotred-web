@@ -27,6 +27,7 @@ export interface SymbolCostNote {
   readonly commissionPerLotRoundTrip?: number;
   readonly slippagePoints?: number;
   readonly tripleSwapDay?: "wednesday" | "friday";
+  readonly swapReferencePrice?: number;
 }
 
 function symbolCostNotes(
@@ -44,6 +45,7 @@ function symbolCostNotes(
         : { commissionPerLotRoundTrip: own.commissionPerLotRoundTrip }),
       ...(own.slippagePoints === undefined ? {} : { slippagePoints: own.slippagePoints }),
       ...(own.tripleSwapDay === undefined ? {} : { tripleSwapDay: own.tripleSwapDay }),
+      ...(own.swapReferencePrice === undefined ? {} : { swapReferencePrice: own.swapReferencePrice }),
     };
     if (Object.keys(note).length > 0) notes[symbol] = note;
   }

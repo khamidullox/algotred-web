@@ -39,6 +39,7 @@ function config(): Config {
     symbols: {
       US500: index,
       US30: index,
+      US2000: index,
       EURUSD: { digits: 5, contractSize: 100_000, usdSide: "quote", swapLongPips: 0, swapShortPips: 0 },
     },
     usdExposureLimit: false,
@@ -104,12 +105,13 @@ describe("TurnOfMonthIndex on hand-made index bars", () => {
     ]);
     expect(result.trades.every((trade) => trade.direction === "BUY" && trade.exitReason === "strategy")).toBe(true);
     // The June order is placed on the last bar of the data: nothing to enter.
-    expect(result.skipped.map((item) => item.reason)).toEqual(["no-next-bar", "no-next-bar"]);
+    expect(result.skipped.map((item) => item.reason)).toEqual(["no-next-bar", "no-next-bar", "no-next-bar"]);
   });
 
   it("trades every index of the strategy the same way", () => {
     expect(times(result.trades, "US30")).toEqual(times(result.trades, "US500"));
-    expect(result.symbols).toEqual(["US500", "US30"]);
+    expect(times(result.trades, "US2000")).toEqual(times(result.trades, "US500"));
+    expect(result.symbols).toEqual(["US500", "US30", "US2000"]);
   });
 
   it("sizes from a stop 2 x ATR(20) of D1 away", () => {

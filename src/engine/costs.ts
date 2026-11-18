@@ -13,6 +13,8 @@ export interface CostSettings {
   readonly slippagePoints: number | null;
   /** Luxon weekday whose rollover charges three nights: 3 Wednesday, 5 Friday. */
   readonly tripleSwapWeekday: number;
+  /** Price at which the swap pips were quoted; null keeps them fixed (TZ 17.6). */
+  readonly swapReferencePrice: number | null;
   /** Pips per night, positive is a credit, as MT5 shows swap. */
   readonly swapLongPips: number;
   readonly swapShortPips: number;
@@ -34,6 +36,7 @@ export function costSettings(
     slippagePips: costs.slippagePips,
     slippagePoints: own.slippagePoints ?? null,
     tripleSwapWeekday: own.tripleSwapDay === "friday" ? 5 : 3,
+    swapReferencePrice: own.swapReferencePrice ?? null,
     swapLongPips: own.swapLongPips,
     swapShortPips: own.swapShortPips,
     multiplier,

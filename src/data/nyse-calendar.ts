@@ -93,14 +93,20 @@ export function isNyseTradingDay(date: string): boolean {
   return parsed.weekday <= 5 && !nyseHolidays(parsed.year).has(date);
 }
 
+const monthCache = new Map<string, readonly string[]>();
+
 /** Trading days of a month, in order. */
-export function nyseTradingDaysOfMonth(year: number, month: number): string[] {
+export function nyseTradingDaysOfMonth(year: number, month: number): readonly string[] {
+  const key = `${year}-${month}`;
+  const cached = monthCache.get(key);
+  if (cached !== undefined) return cached;
   const result: string[] = [];
   const end = day(year, month, 1).endOf("month").day;
   for (let dayOfMonth = 1; dayOfMonth <= end; dayOfMonth++) {
     const date = iso(day(year, month, dayOfMonth));
     if (isNyseTradingDay(date)) result.push(date);
   }
+  monthCache.set(key, result);
   return result;
 }
 

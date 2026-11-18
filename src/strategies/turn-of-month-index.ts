@@ -4,12 +4,12 @@ import { nyseTradingDaysOfMonth } from "../data/nyse-calendar";
 import { AtrWilder } from "../indicators/atr";
 
 /**
- * The index CFDs of TZ 17.6 as `MetaQuotes-Demo` names them. The approved
- * rules name three; Nasdaq 100 (USTEC) has history only from July 2022 on
- * that server, which the frozen dataset boundaries cannot take, so the third
- * instrument waits for the customer's decision.
+ * The index CFDs of TZ 17.6 as `MetaQuotes-Demo` names them. Nasdaq 100
+ * (USTEC) has history only from July 2022 on that server, which the frozen
+ * dataset boundaries cannot take; the customer chose Russell 2000 (US2000)
+ * instead before any run.
  */
-export const INDEX_SYMBOLS = ["US500", "US30"] as const;
+export const INDEX_SYMBOLS = ["US500", "US30", "US2000"] as const;
 
 /** Fixed by TZ 17.6 (approved 2026-11-18). Not configurable on purpose. */
 export const CALENDAR_WINDOW = {
@@ -68,6 +68,8 @@ function createCalendarStrategy(options: {
     symbols: INDEX_SYMBOLS,
     create: () => {
       const atr = new AtrWilder(CALENDAR_WINDOW.atrPeriod);
+      // Windows depend only on the calendar: computed once per month.
+      const windows = new Map<string, Planned>();
       let planned: Planned | null = null;
       let exitPlaced = false;
 
@@ -97,12 +99,18 @@ function createCalendarStrategy(options: {
           const candidates = [[now.year, now.month], nextMonth(now.year, now.month)] as const;
           let next: Planned | null = null;
           for (const [year, month] of candidates) {
-            const window = options.windowOf(year, month);
-            const entryStart = startOf(window.entryDay);
+            const cacheKey = `${year}-${month}`;
+            let cached = windows.get(cacheKey);
+            if (cached === undefined) {
+              const made = options.windowOf(year, month);
+              cached = { window: made, entryStart: startOf(made.entryDay), exitStart: dayAfter(made.lastDay) };
+              windows.set(cacheKey, cached);
+            }
+            const { entryStart } = cached;
             // At ctx.now == entryStart the previous day has just closed: the
             // order still fills at the first open of the entry day.
             if (entryStart >= ctx.now) {
-              next = { window, entryStart, exitStart: dayAfter(window.lastDay) };
+              next = cached;
               break;
             }
           }

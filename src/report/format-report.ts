@@ -115,6 +115,7 @@ export function formatReport(report: Report): string {
           if (note.commissionPerLotRoundTrip !== undefined) parts.push(`комиссия ${note.commissionPerLotRoundTrip} USD/лот`);
           if (note.slippagePoints !== undefined) parts.push(`проскальзывание ${note.slippagePoints} п.`);
           if (note.tripleSwapDay === "friday") parts.push("тройной своп в пятницу");
+          if (note.swapReferencePrice !== undefined) parts.push(`своп пропорционален цене (снят при ${note.swapReferencePrice})`);
           return `${symbol} — ${parts.join(", ")}`;
         })
         .join("; ")}.`,

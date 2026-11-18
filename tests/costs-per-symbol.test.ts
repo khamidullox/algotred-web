@@ -107,6 +107,20 @@ describe("an index trade over a weekend (TZ 17.6)", () => {
   });
 });
 
+describe("swap scaled by price (TZ 17.6)", () => {
+  it("charges a quarter of the quoted swap at a quarter of the reference price", () => {
+    const bars = flatBars("H1", "2024-05-09T00:00", 24 * 6, 5000, 50);
+    const scaled = runBacktest({
+      data: [symbolData("US500", bars)],
+      strategy: scripted({ "2024-05-09T12:00": buy(20), "2024-05-13T12:00": exit() }, "H1"),
+      span: { start: at("2024-05-09T00:00"), end: at("2024-05-09T00:00") + 24 * 6 * 3_600_000 },
+      config: indexConfig({ swapReferencePrice: 20_000 }),
+    }).trades[0] as Trade;
+    // Entry 5000.84 against 20 000: the swap is scaled by 0.250042.
+    expect(scaled.swapUsd).toBeCloseTo(4 * -13.4693 * (5000.84 / 20_000) * scaled.lots, 9);
+  });
+});
+
 describe("other instruments are unaffected", () => {
   it("prices a forex buy exactly as before", () => {
     const bars = flatBars("H1", "2024-05-09T00:00", 48, 1.1).map((item) => bar(item.time, 1.1, 1.1, 1.1, 1.1, 0));
