@@ -20,6 +20,8 @@ export const STRATEGY_NAMES = [
   "RectangleV1",
   // Stage 3 (TZ 17.3): trade against an H1 breakout that closed back inside.
   "FailedBreakoutV1",
+  // Stage 3 (TZ 17.4): Connors RSI(2) mean reversion on daily bars.
+  "Rsi2ReversionD1",
 ] as const;
 
 /** An instrument name as MT5 writes it, e.g. EURUSD or XAUUSD. The set comes from the config (TZ 17). */

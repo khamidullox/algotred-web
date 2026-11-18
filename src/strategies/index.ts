@@ -8,6 +8,7 @@ import {
 } from "./breakout-retest-v1";
 import { failedBreakoutV1 } from "./failed-breakout-v1";
 import { rectangleV1 } from "./rectangle-v1";
+import { rsi2ReversionD1 } from "./rsi2-reversion-d1";
 import { strongLevelD1 } from "./strong-level-d1";
 import { trendD1 } from "./trend-d1";
 
@@ -20,4 +21,5 @@ export const STRATEGIES: Readonly<Record<StrategyName, Strategy>> = {
   StrongLevelD1: strongLevelD1,
   RectangleV1: rectangleV1,
   FailedBreakoutV1: failedBreakoutV1,
+  Rsi2ReversionD1: rsi2ReversionD1,
 };
