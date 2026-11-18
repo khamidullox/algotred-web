@@ -27,6 +27,9 @@ export const STRATEGY_NAMES = [
   // Stage 3 (TZ 17.6): the turn of the month on US index CFDs, and its mid-month control.
   "TurnOfMonthIndex",
   "MidMonthIndexControl",
+  // Stage 3 (TZ 17.7, 17.8): two ideas from the customer's Telegram channels.
+  "ThreeTouchTrendD1",
+  "SeriesBreakH4",
 ] as const;
 
 /** An instrument name as MT5 writes it, e.g. EURUSD or XAUUSD. The set comes from the config (TZ 17). */
