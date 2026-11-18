@@ -22,6 +22,8 @@ export const STRATEGY_NAMES = [
   "FailedBreakoutV1",
   // Stage 3 (TZ 17.4): Connors RSI(2) mean reversion on daily bars.
   "Rsi2ReversionD1",
+  // Stage 3 (TZ 17.5): EURUSD by the time of day, after Breedon and Ranaldo (2013).
+  "TimeOfDayEURUSD",
 ] as const;
 
 /** An instrument name as MT5 writes it, e.g. EURUSD or XAUUSD. The set comes from the config (TZ 17). */

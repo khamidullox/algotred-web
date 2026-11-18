@@ -89,6 +89,13 @@ export interface Signal {
    * it to the close time of the signal bar.
    */
   readonly expectedEntryTime?: number;
+  /**
+   * When a position in the other direction is open as the signal fills, close
+   * it at the same open (exit reason "strategy") and then enter; the lot is
+   * sized from the balance after that close (TZ 17.5). Without it an entry
+   * signal with a position open is skipped as "position-open".
+   */
+  readonly reverse?: boolean;
   readonly reason: string;
 }
 
@@ -116,6 +123,11 @@ export interface Strategy {
    * next bar and stops are checked on its bars (TZ 7.2: M15, or H1 for a D1 strategy).
    */
   readonly executionTimeframe: "M15" | "H1";
+  /**
+   * The instruments the strategy trades; the run uses only these (TZ 17.5).
+   * Omitted: every instrument of the config.
+   */
+  readonly symbols?: readonly SymbolName[];
   /** One instance per symbol; it may keep state between bars. */
   create(symbol: SymbolName): StrategyInstance;
 }

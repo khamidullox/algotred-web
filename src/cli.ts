@@ -1,5 +1,5 @@
 import { CliUsageError, parseCliArgs, USAGE } from "./cli-args";
-import { ConfigError, loadConfig, symbolNames, type Config } from "./config";
+import { ConfigError, loadConfig, type Config } from "./config";
 import { readAllSeries } from "./data/load";
 import {
   assertDatasetAccess,
@@ -110,7 +110,7 @@ function backtest(
       minSpreadPoints: config.costs.minSpreadPoints,
       commissionPerLotRoundTrip: config.costs.commissionPerLotRoundTrip,
       slippagePips: config.costs.slippagePips,
-      symbols: symbolNames(config).join(", "),
+      symbols: result.symbols.join(", "),
       swapPipsLongShort: JSON.stringify(
         Object.fromEntries(
           Object.entries(config.symbols).map(([symbol, own]) => [

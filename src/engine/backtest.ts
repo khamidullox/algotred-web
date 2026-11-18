@@ -141,7 +141,23 @@ export function runBacktest(input: BacktestInput): BacktestResult {
   const trades: Trade[] = [];
   const skipped: SkippedSignal[] = [];
 
-  const states = input.data
+  // A strategy may trade only some of the instruments (TZ 17.5).
+  const wanted = strategy.symbols;
+  if (wanted !== undefined) {
+    const given = new Set(input.data.map((data) => data.symbol));
+    const missing = wanted.filter((symbol) => !given.has(symbol));
+    if (missing.length > 0) {
+      throw new Error(
+        `Стратегия ${strategy.name} торгует ${missing.join(", ")}, а данных по ним нет.`,
+      );
+    }
+  }
+  const runData =
+    wanted === undefined
+      ? input.data
+      : input.data.filter((data) => wanted.includes(data.symbol));
+
+  const states = runData
     .map((data) =>
       createState(data, strategy, config, costMultiplier, span, zone),
     )
@@ -278,6 +294,12 @@ export function runBacktest(input: BacktestInput): BacktestResult {
 
     const { spec, costs } = state;
     const { direction } = action;
+    // A reversal (TZ 17.5): the opposite position is closed at this open
+    // first, whatever happens to the new entry below.
+    if (state.position !== null && action.reverse === true && state.position.direction !== direction) {
+      const fill = fillMarketExit(spec, state.position.direction, bar, bar.open, costs);
+      closePosition(state, fill, bar.time, "strategy");
+    }
     if (action.expectedEntryTime !== undefined && bar.time !== action.expectedEntryTime) {
       skip(
         state,
@@ -412,7 +434,11 @@ export function runBacktest(input: BacktestInput): BacktestResult {
     if (action === null) return;
 
     if (action.kind === "entry") {
-      if (state.position !== null) {
+      const reverses =
+        action.reverse === true &&
+        state.position !== null &&
+        state.position.direction !== action.direction;
+      if (state.position !== null && !reverses) {
         skip(
           state,
           action.direction,
@@ -479,7 +505,7 @@ export function runBacktest(input: BacktestInput): BacktestResult {
     strategy: strategy.name,
     params: strategy.params,
     executionTimeframe: execTimeframe,
-    symbols: input.data.map((data) => data.symbol),
+    symbols: runData.map((data) => data.symbol),
     span,
     brokerTimeZone: zone,
     initialBalance: config.initialCapitalUsd,
