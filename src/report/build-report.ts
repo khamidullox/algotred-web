@@ -24,7 +24,7 @@ import {
   type Excursions,
   type MetricsBlock,
 } from "./metrics";
-import type { SavedRun } from "./save-run";
+import type { SavedRun, SymbolCostNote } from "./save-run";
 import { decide, type Verdict } from "./verdict";
 
 export const REPORT_VERSION = 1;
@@ -41,6 +41,8 @@ export interface Report {
   readonly brokerTimeZone: string;
   readonly finishedAt: number;
   readonly costs: Config["costs"];
+  /** Per-instrument cost overrides of the run (TZ 17.6); empty for older runs. */
+  readonly symbolCosts: Readonly<Record<string, SymbolCostNote>>;
   readonly initialCapitalUsd: number;
   readonly riskPerTradePct: number;
   readonly usdExposureLimit: boolean;
@@ -130,6 +132,7 @@ export function buildReport({ run, stress, exposureFlipped }: ReportInput): Repo
     brokerTimeZone: run.brokerTimeZone,
     finishedAt: run.finishedAt,
     costs: run.costs,
+    symbolCosts: run.symbolCosts ?? {},
     initialCapitalUsd: run.initialCapitalUsd,
     riskPerTradePct: run.riskPerTradePct,
     usdExposureLimit: run.usdExposureLimit,

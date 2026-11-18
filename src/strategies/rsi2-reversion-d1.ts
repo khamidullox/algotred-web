@@ -2,6 +2,7 @@ import type { Strategy } from "../engine/types";
 import { AtrWilder } from "../indicators/atr";
 import { RsiWilder } from "../indicators/rsi";
 import { Sma } from "../indicators/sma";
+import { FX_AND_GOLD } from "./baskets";
 
 /** Fixed by TZ 17.4 (approved 2026-11-18). Not configurable on purpose. */
 export const RSI2_REVERSION = {
@@ -36,6 +37,7 @@ export const rsi2ReversionD1: Strategy = {
     executionTimeframe: "H1",
   },
   executionTimeframe: "H1",
+  symbols: FX_AND_GOLD,
   create: () => {
     const atr = new AtrWilder(RSI2_REVERSION.atrPeriod);
     const rsi = new RsiWilder(RSI2_REVERSION.rsiPeriod);

@@ -58,6 +58,13 @@ function backtest(
     );
     return EXIT_NOT_IMPLEMENTED;
   }
+  const unknown = (strategy.symbols ?? []).filter((symbol) => config.symbols[symbol] === undefined);
+  if (unknown.length > 0) {
+    console.error(
+      `backtest: стратегия ${strategy.name} торгует ${unknown.join(", ")}, а в конфиге таких инструментов нет. Запуск не выполнен.`,
+    );
+    return EXIT_USAGE;
+  }
 
   const zone = config.brokerTimeZone;
   const inputs = readAllSeries(config);

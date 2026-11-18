@@ -9,6 +9,10 @@ export interface CostSettings {
   readonly minSpreadPoints: number;
   readonly commissionPerLotRoundTrip: number;
   readonly slippagePips: number;
+  /** The instrument's own slippage in points (TZ 17.6), or null to use `slippagePips`. */
+  readonly slippagePoints: number | null;
+  /** Luxon weekday whose rollover charges three nights: 3 Wednesday, 5 Friday. */
+  readonly tripleSwapWeekday: number;
   /** Pips per night, positive is a credit, as MT5 shows swap. */
   readonly swapLongPips: number;
   readonly swapShortPips: number;
@@ -28,6 +32,8 @@ export function costSettings(
     commissionPerLotRoundTrip:
       own.commissionPerLotRoundTrip ?? costs.commissionPerLotRoundTrip,
     slippagePips: costs.slippagePips,
+    slippagePoints: own.slippagePoints ?? null,
+    tripleSwapWeekday: own.tripleSwapDay === "friday" ? 5 : 3,
     swapLongPips: own.swapLongPips,
     swapShortPips: own.swapShortPips,
     multiplier,
@@ -49,7 +55,11 @@ export function spreadOf(
 
 /** Slippage of one execution in price units; the engine applies it against the trader. */
 export function slippageOf(spec: SymbolSpec, costs: CostSettings): number {
-  return costs.slippagePips * spec.pip * costs.multiplier;
+  const perFill =
+    costs.slippagePoints === null
+      ? costs.slippagePips * spec.pip
+      : costs.slippagePoints * spec.point;
+  return perFill * costs.multiplier;
 }
 
 export function commissionUsd(lots: number, costs: CostSettings): number {
@@ -59,7 +69,7 @@ export function commissionUsd(lots: number, costs: CostSettings): number {
 export interface SwapNights {
   /** Rollovers that charge swap. */
   readonly nights: number;
-  /** The same with Wednesday counted three times. */
+  /** The same with the triple-swap day (Wednesday unless the instrument says otherwise) counted three times. */
   readonly weightedNights: number;
 }
 
@@ -67,10 +77,16 @@ export interface SwapNights {
  * Rollovers a position held from `from` to `to` (UTC ms) goes through. A
  * rollover is server midnight. As in MT5 for forex, the nights ending on
  * Saturday and Sunday charge nothing and the night ending on Wednesday charges
- * three. A position opened exactly at midnight does not pay for that night;
- * one closed exactly at midnight does.
+ * three; `tripleWeekday` 5 moves the triple night to Friday, as FundedNext does
+ * for index CFDs (TZ 17.6). A position opened exactly at midnight does not pay
+ * for that night; one closed exactly at midnight does.
  */
-export function swapNights(from: number, to: number, zone: string): SwapNights {
+export function swapNights(
+  from: number,
+  to: number,
+  zone: string,
+  tripleWeekday = 3,
+): SwapNights {
   let nights = 0;
   let weightedNights = 0;
   let midnight = DateTime.fromMillis(from, { zone })
@@ -81,7 +97,7 @@ export function swapNights(from: number, to: number, zone: string): SwapNights {
     const ending = midnight.minus({ days: 1 }).weekday;
     if (ending <= 5) {
       nights++;
-      weightedNights += ending === 3 ? 3 : 1;
+      weightedNights += ending === tripleWeekday ? 3 : 1;
     }
     midnight = midnight.plus({ days: 1 });
   }

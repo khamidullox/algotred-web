@@ -96,6 +96,12 @@ export interface Signal {
    * signal with a position open is skipped as "position-open".
    */
   readonly reverse?: boolean;
+  /**
+   * A scheduled order (TZ 17.6): it rests until the first bar that opens at or
+   * after this time (UTC ms) and fills at that open; earlier bars leave it
+   * waiting. Without it the order fills at the next open.
+   */
+  readonly notBefore?: number;
   readonly reason: string;
 }
 
@@ -103,6 +109,8 @@ export interface Signal {
 export interface ExitSignal {
   readonly kind: "exit";
   readonly reason: string;
+  /** A scheduled exit, as `Signal.notBefore`. Ignored if the position is gone by then. */
+  readonly notBefore?: number;
 }
 
 export type StrategyAction = Signal | ExitSignal;

@@ -17,6 +17,37 @@ export interface SavedRun extends BacktestResult {
   readonly costs: Config["costs"];
   readonly initialCapitalUsd: number;
   readonly riskPerTradePct: number;
+  /** Cost settings an instrument of the run overrides (TZ 17.6); absent in older runs. */
+  readonly symbolCosts?: Readonly<Record<string, SymbolCostNote>>;
+}
+
+/** The per-instrument overrides of the cost defaults, as the config gives them. */
+export interface SymbolCostNote {
+  readonly minSpreadPoints?: number;
+  readonly commissionPerLotRoundTrip?: number;
+  readonly slippagePoints?: number;
+  readonly tripleSwapDay?: "wednesday" | "friday";
+}
+
+function symbolCostNotes(
+  config: Config,
+  symbols: readonly string[],
+): Record<string, SymbolCostNote> {
+  const notes: Record<string, SymbolCostNote> = {};
+  for (const symbol of symbols) {
+    const own = config.symbols[symbol];
+    if (own === undefined) continue;
+    const note: SymbolCostNote = {
+      ...(own.minSpreadPoints === undefined ? {} : { minSpreadPoints: own.minSpreadPoints }),
+      ...(own.commissionPerLotRoundTrip === undefined
+        ? {}
+        : { commissionPerLotRoundTrip: own.commissionPerLotRoundTrip }),
+      ...(own.slippagePoints === undefined ? {} : { slippagePoints: own.slippagePoints }),
+      ...(own.tripleSwapDay === undefined ? {} : { tripleSwapDay: own.tripleSwapDay }),
+    };
+    if (Object.keys(note).length > 0) notes[symbol] = note;
+  }
+  return notes;
 }
 
 export interface RunLocation {
@@ -47,6 +78,7 @@ export function toSavedRun(
     costs: config.costs,
     initialCapitalUsd: config.initialCapitalUsd,
     riskPerTradePct: config.riskPerTradePct,
+    symbolCosts: symbolCostNotes(config, result.symbols),
     ...result,
   };
 }

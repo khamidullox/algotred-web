@@ -141,21 +141,18 @@ export function runBacktest(input: BacktestInput): BacktestResult {
   const trades: Trade[] = [];
   const skipped: SkippedSignal[] = [];
 
-  // A strategy may trade only some of the instruments (TZ 17.5).
+  // A strategy may trade only some of the instruments (TZ 17.5): the run
+  // takes those it is given data for. The CLI checks that the config has them all.
   const wanted = strategy.symbols;
-  if (wanted !== undefined) {
-    const given = new Set(input.data.map((data) => data.symbol));
-    const missing = wanted.filter((symbol) => !given.has(symbol));
-    if (missing.length > 0) {
-      throw new Error(
-        `Стратегия ${strategy.name} торгует ${missing.join(", ")}, а данных по ним нет.`,
-      );
-    }
-  }
   const runData =
     wanted === undefined
       ? input.data
       : input.data.filter((data) => wanted.includes(data.symbol));
+  if (wanted !== undefined && runData.length === 0) {
+    throw new Error(
+      `Стратегия ${strategy.name} торгует ${wanted.join(", ")}, а данных ни по одному из них нет.`,
+    );
+  }
 
   const states = runData
     .map((data) =>
@@ -206,6 +203,7 @@ export function runBacktest(input: BacktestInput): BacktestResult {
       position.entryTime,
       exitTime,
       zone,
+      costs.tripleSwapWeekday,
     );
     const swapUsd =
       swapPips(position.direction, weightedNights, costs) *
@@ -274,8 +272,10 @@ export function runBacktest(input: BacktestInput): BacktestResult {
 
   const atOpen = (state: SymbolState, bar: Bar): void => {
     const pending = state.pending;
-    state.pending = null;
     if (pending === null) return;
+    // A scheduled order keeps resting until its time (TZ 17.6).
+    if (pending.action.notBefore !== undefined && bar.time < pending.action.notBefore) return;
+    state.pending = null;
     const { action, signalTime } = pending;
 
     if (action.kind === "exit") {

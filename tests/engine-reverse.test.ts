@@ -127,7 +127,7 @@ describe("a strategy's own instruments (TZ 17.5)", () => {
     expect(result.trades.map((trade) => trade.symbol)).toEqual(["EURUSD"]);
   });
 
-  it("refuses to run when a named instrument has no data", () => {
+  it("refuses to run when none of its instruments has data", () => {
     expect(() =>
       runBacktest({
         data: [symbolData("GBPUSD", bars())],
@@ -136,6 +136,17 @@ describe("a strategy's own instruments (TZ 17.5)", () => {
         config: testConfig(),
       }),
     ).toThrow(/EURUSD/);
+  });
+
+  it("runs on the named instruments it has data for", () => {
+    const both: Strategy = { ...everywhere, symbols: ["EURUSD", "USDJPY"] };
+    const result = runBacktest({
+      data: [symbolData("EURUSD", bars()), symbolData("GBPUSD", bars())],
+      strategy: both,
+      span: { start: at(START), end: at(START) + COUNT * M15 },
+      config: testConfig(),
+    });
+    expect(result.symbols).toEqual(["EURUSD"]);
   });
 
   it("keeps every instrument for a strategy that names none", () => {

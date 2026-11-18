@@ -105,6 +105,21 @@ export function formatReport(report: Report): string {
       `Издержки: спред из файла, не меньше ${report.costs.minSpreadPoints} п.; комиссия ${report.costs.commissionPerLotRoundTrip} USD/лот; ` +
       `проскальзывание ${report.costs.slippagePips} пипс; лимит по доллару ${report.usdExposureLimit ? "включён" : "выключен"}.`,
   );
+  const own = Object.entries(report.symbolCosts);
+  if (own.length > 0) {
+    lines.push(
+      `Свои издержки инструментов: ${own
+        .map(([symbol, note]) => {
+          const parts: string[] = [];
+          if (note.minSpreadPoints !== undefined) parts.push(`спред не меньше ${note.minSpreadPoints} п.`);
+          if (note.commissionPerLotRoundTrip !== undefined) parts.push(`комиссия ${note.commissionPerLotRoundTrip} USD/лот`);
+          if (note.slippagePoints !== undefined) parts.push(`проскальзывание ${note.slippagePoints} п.`);
+          if (note.tripleSwapDay === "friday") parts.push("тройной своп в пятницу");
+          return `${symbol} — ${parts.join(", ")}`;
+        })
+        .join("; ")}.`,
+    );
+  }
   for (const warning of report.warnings) lines.push(`- ВНИМАНИЕ: ${warning}`);
 
   section(`Вердикт: ${report.verdict.code}`);

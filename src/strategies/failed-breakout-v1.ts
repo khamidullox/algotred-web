@@ -2,6 +2,7 @@ import { DateTime } from "luxon";
 import type { Bar } from "../data/types";
 import type { ClosedBars, MarketContext, Signal, Strategy } from "../engine/types";
 import { AtrWilder } from "../indicators/atr";
+import { FX_AND_GOLD } from "./baskets";
 import { inSession } from "./breakout-retest-v1";
 
 /** Fixed by TZ 17.3 (approved 2026-11-18). Not configurable on purpose. */
@@ -171,6 +172,7 @@ export const failedBreakoutV1: Strategy = {
     executionTimeframe: "M15",
   },
   executionTimeframe: "M15",
+  symbols: FX_AND_GOLD,
   create: () => {
     let zone = "utc";
     const instance = createInstance(() => zone);

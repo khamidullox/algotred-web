@@ -24,6 +24,9 @@ export const STRATEGY_NAMES = [
   "Rsi2ReversionD1",
   // Stage 3 (TZ 17.5): EURUSD by the time of day, after Breedon and Ranaldo (2013).
   "TimeOfDayEURUSD",
+  // Stage 3 (TZ 17.6): the turn of the month on US index CFDs, and its mid-month control.
+  "TurnOfMonthIndex",
+  "MidMonthIndexControl",
 ] as const;
 
 /** An instrument name as MT5 writes it, e.g. EURUSD or XAUUSD. The set comes from the config (TZ 17). */
@@ -56,6 +59,16 @@ const symbolSchema = z.strictObject({
   /** Per-instrument overrides of the cost defaults in `costs`. */
   minSpreadPoints: z.number().nonnegative().optional(),
   commissionPerLotRoundTrip: z.number().nonnegative().optional(),
+  /**
+   * Slippage in this instrument's own points (10^-digits) instead of
+   * `costs.slippagePips`: a forex pip means nothing for an index (TZ 17.6).
+   */
+  slippagePoints: z.number().nonnegative().optional(),
+  /**
+   * The weekday whose rollover charges three nights. Wednesday for forex and
+   * metals; FundedNext charges index CFDs on Friday (TZ 17.6). Default Wednesday.
+   */
+  tripleSwapDay: z.enum(["wednesday", "friday"]).optional(),
   /**
    * false: this instrument's weekly close is reported but does not confirm or
    * refute the server time zone, because its trading schedule differs from
