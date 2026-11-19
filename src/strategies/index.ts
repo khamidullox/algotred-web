@@ -9,8 +9,8 @@ import {
 import { failedBreakoutV1 } from "./failed-breakout-v1";
 import { goldFlatLimitM15 } from "./gold-flat-limit-m15";
 import { rectangleV1 } from "./rectangle-v1";
-import { rsi2IndexControl } from "./rsi2-index-control";
-import { rsi2ReversionD1, rsi2ReversionIndexD1 } from "./rsi2-reversion-d1";
+import { rsi2IndexControl, rsi2IndexH1Control } from "./rsi2-index-control";
+import { rsi2ReversionD1, rsi2ReversionIndexD1, rsi2ReversionIndexH1 } from "./rsi2-reversion-d1";
 import { strongLevelD1 } from "./strong-level-d1";
 import { seriesBreakH4 } from "./series-break-h4";
 import { threeTouchTrendD1 } from "./three-touch-trend-d1";
@@ -36,4 +36,6 @@ export const STRATEGIES: Readonly<Record<StrategyName, Strategy>> = {
   GoldFlatLimitM15: goldFlatLimitM15,
   Rsi2ReversionIndexD1: rsi2ReversionIndexD1,
   Rsi2IndexControl: rsi2IndexControl,
+  Rsi2ReversionIndexH1: rsi2ReversionIndexH1,
+  Rsi2IndexH1Control: rsi2IndexH1Control,
 };

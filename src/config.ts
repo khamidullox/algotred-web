@@ -40,6 +40,9 @@ export const STRATEGY_NAMES = [
   // Stage 3 (TZ 17.12): Connors RSI(2) on the US indices, with its control.
   "Rsi2ReversionIndexD1",
   "Rsi2IndexControl",
+  // Stage 3 (TZ 17.13): the same RSI(2) rules on hourly candles, with its control.
+  "Rsi2ReversionIndexH1",
+  "Rsi2IndexH1Control",
 ] as const;
 
 /** An instrument name as MT5 writes it, e.g. EURUSD or XAUUSD. The set comes from the config (TZ 17). */
