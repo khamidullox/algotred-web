@@ -180,3 +180,73 @@
   - Стресс-тест, USD: -230.85
   - 95% ДИ среднего R: −0.169 … +0.069
   - Файлы: test/2026-11-19_14-16-02_Rsi2IndexControl
+
+### 2026-11-19 14:19:16 UTC · Rsi2ReversionIndexD1 · holdout
+
+- Набор данных: `holdout`, с 2024-11-16 по 2026-10-29 включительно (713 дн., дни сервера `Europe/Athens`)
+- Параметры:
+  - rsiPeriod: 2
+  - buyBelowRsi: 5
+  - sellAboveRsi: 95
+  - trendSmaPeriod: 200
+  - exitSmaPeriod: 5
+  - atrPeriod: 20
+  - atrMultiple: 2
+  - rsiMethod: Wilder (as MT5 Relative Strength Index)
+  - atrMethod: Wilder
+  - signalTimeframe: D1
+  - executionTimeframe: H1
+  - initialCapitalUsd: 10000
+  - riskPerTradePct: 0.5
+  - minSpreadPoints: 5
+  - commissionPerLotRoundTrip: 7
+  - slippagePips: 0.2
+  - symbols: US500, US30, US2000
+  - swapPipsLongShort: {"EURUSD":[-1.3472,0.0107],"GBPUSD":[-1.713,-0.2977],"USDJPY":[-1.95912,-4.0755],"AUDUSD":[-0.687,-0.216],"NZDUSD":[0.134385,-0.24284],"USDCAD":[-0.26,-0.804],"USDCHF":[-0.99697,-1.6822],"XAUUSD":[-10.7151,-4.6917],"US500":[-13.4693,-3.663],"US30":[-23.2077,-99.606],"US2000":[-4.9956,-1.3586]}
+  - usdExposureLimit: false
+- Главные метрики:
+  - Вердикт: REJECT
+  - Сделок: 26
+  - Прибыльных: 80.8%
+  - Средний R: +0.265
+  - Profit Factor: 2.98
+  - Максимальная просадка: 1.0%
+  - Итог после издержек, USD: 302.52
+  - Итог до издержек, USD: 341.58
+  - Стресс-тест, USD: 292.18
+  - 95% ДИ среднего R: +0.041 … +0.474
+  - Файлы: holdout/2026-11-19_14-19-16_Rsi2ReversionIndexD1
+
+### 2026-11-19 14:19:46 UTC · Rsi2IndexControl · holdout
+
+- Набор данных: `holdout`, с 2024-11-16 по 2026-10-29 включительно (713 дн., дни сервера `Europe/Athens`)
+- Параметры:
+  - rsiPeriod: 2
+  - trendSmaPeriod: 200
+  - atrPeriod: 20
+  - atrMultiple: 2
+  - neutralRsiLow: 45
+  - neutralRsiHigh: 55
+  - holdDays: 4
+  - signalTimeframe: D1
+  - executionTimeframe: H1
+  - initialCapitalUsd: 10000
+  - riskPerTradePct: 0.5
+  - minSpreadPoints: 5
+  - commissionPerLotRoundTrip: 7
+  - slippagePips: 0.2
+  - symbols: US500, US30, US2000
+  - swapPipsLongShort: {"EURUSD":[-1.3472,0.0107],"GBPUSD":[-1.713,-0.2977],"USDJPY":[-1.95912,-4.0755],"AUDUSD":[-0.687,-0.216],"NZDUSD":[0.134385,-0.24284],"USDCAD":[-0.26,-0.804],"USDCHF":[-0.99697,-1.6822],"XAUUSD":[-10.7151,-4.6917],"US500":[-13.4693,-3.663],"US30":[-23.2077,-99.606],"US2000":[-4.9956,-1.3586]}
+  - usdExposureLimit: false
+- Главные метрики:
+  - Вердикт: REJECT
+  - Сделок: 58
+  - Прибыльных: 50.0%
+  - Средний R: −0.025
+  - Profit Factor: 0.86
+  - Максимальная просадка: 1.8%
+  - Итог после издержек, USD: -101.01
+  - Итог до издержек, USD: 4.17
+  - Стресс-тест, USD: -116.16
+  - 95% ДИ среднего R: −0.200 … +0.149
+  - Файлы: holdout/2026-11-19_14-19-46_Rsi2IndexControl
