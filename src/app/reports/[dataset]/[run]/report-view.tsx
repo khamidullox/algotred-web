@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Report } from "../../../../report/build-report";
 import { money, pct, pf, r } from "../../../../report/format-report";
 import type { BreakdownRow, MetricsBlock } from "../../../../report/metrics";
+import type { NewsBreakdown } from "../../../../report/news";
 
 const STATUS_LABELS = {
   continue: "продолжаем",
@@ -83,7 +84,18 @@ function Breakdown({ title, rows }: { title: string; rows: readonly BreakdownRow
   );
 }
 
-export function ReportView({ id, report }: { id: string; report: Report }) {
+export function ReportView({
+  id,
+  report,
+  news = null,
+  newsComputedLater = false,
+}: {
+  id: string;
+  report: Report;
+  /** Trades against important news; worked out on the page for older reports. */
+  news?: NewsBreakdown | null;
+  newsComputedLater?: boolean;
+}) {
   const main = report.afterCosts;
   const finished = new Date(report.finishedAt).toLocaleString("ru-RU", {
     dateStyle: "short",
@@ -277,6 +289,26 @@ export function ReportView({ id, report }: { id: string; report: Report }) {
         Просадка в строках-подмножествах пересчитана по тем же сделкам от стартового капитала: лоты
         считались на полном прогоне.
       </p>
+
+      {news !== null && (
+        <>
+          <h2>Сделки и важные новости</h2>
+          <MetricsTable
+            rows={[
+              [`Вход в пределах ±${news.windowMinutes} мин от важной новости`, news.near],
+              ["Важная новость во время сделки", news.during],
+              ["Без важных новостей", news.clear],
+            ]}
+          />
+          <p className="muted">
+            Важные новости — события календаря MT5 с важностью HIGH и точным временем по валютам
+            инструмента (у золота и индексов — USD); за период их {news.events}. Во вторую строку попадают в
+            основном долгие сделки: быстрые стопы не доживают до новости. Поэтому её результат — не довод в
+            пользу новостей; честное сравнение — первая строка против двух остальных вместе.
+            {newsComputedLater && " Отчёт сделан раньше этого раздела: он посчитан по календарю при открытии страницы."}
+          </p>
+        </>
+      )}
 
       <h2>Параметры</h2>
       <div className="card table-wrap">

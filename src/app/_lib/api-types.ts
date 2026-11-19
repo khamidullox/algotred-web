@@ -55,6 +55,26 @@ export interface RunSummary {
 
 export type ChartTradeExit = "stop" | "take" | "strategy" | "end-of-data" | "breakeven";
 
+/** One economic calendar release for the chart. Times in UTC seconds. */
+export interface NewsItem {
+  time: number;
+  currency: string;
+  code: string;
+  name: string;
+  importance: "LOW" | "MODERATE" | "HIGH" | "NONE";
+  unit: number;
+  multiplier: number;
+  actual: number | null;
+  forecast: number | null;
+  previous: number | null;
+}
+
+export interface NewsResponse {
+  items: NewsItem[];
+  /** Why there is no calendar, when there is none. */
+  problem: string | null;
+}
+
 export interface TradeMoment {
   /** As written by the strategy: «пробой», «ретест», «провал», «касание», … */
   readonly label: string;

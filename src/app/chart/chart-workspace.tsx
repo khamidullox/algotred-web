@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AnyTimeframe, SymbolName } from "../../config";
-import type { ApiError, BarsResponse, ChartBar, ChartTrade, RunResponse, RunSummary } from "../_lib/api-types";
-import { aggregateH4, atr, channel, rsiWilder, sma, swingLevels } from "../_lib/chart-math";
-import { CHANNEL_COLOR, ProChart, SMA_FAST_COLOR, SMA_SLOW_COLOR, type Focus, type Studies } from "./pro-chart";
+import type { ApiError, BarsResponse, ChartBar, ChartTrade, NewsItem, NewsResponse, RunResponse, RunSummary } from "../_lib/api-types";
+import { aggregateH4, atr, barAtOrBefore, channel, rsiWilder, sma, swingLevels } from "../_lib/chart-math";
+import { CHANNEL_COLOR, NEWS_COLORS, ProChart, SMA_FAST_COLOR, SMA_SLOW_COLOR, type Focus, type Studies } from "./pro-chart";
 import { GUIDES, guideFor, type StrategyGuide, type ViewTimeframe } from "./strategy-guide";
 
 const VIEW_TIMEFRAMES: readonly ViewTimeframe[] = ["M1", "M5", "M15", "H1", "H4", "D1"];
@@ -43,6 +43,13 @@ function formatServer(seconds: number, intraday: boolean): string {
   const iso = new Date(seconds * 1000).toISOString();
   const day = `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
   return intraday ? `${day} ${iso.slice(11, 16)}` : day;
+}
+
+/** A calendar figure with MetaQuotes' multiplier (K, M, B, T) and the percent sign. */
+function newsValue(item: NewsItem, value: number | null): string {
+  if (value === null) return "—";
+  const suffix = ["", "K", "M", "B", "T"][item.multiplier] ?? "";
+  return `${Number(value.toFixed(3))}${suffix}${item.unit === 1 ? "%" : ""}`;
 }
 
 function readLines(): Record<string, number[]> {
@@ -103,6 +110,10 @@ export function ChartWorkspace({
   const [hover, setHover] = useState<number | null>(null);
   const [focus, setFocus] = useState<Focus | null>(null);
   const focusToken = useRef(0);
+
+  const [newsMode, setNewsMode] = useState<"none" | "HIGH" | "MODERATE">("HIGH");
+  const [news, setNews] = useState<readonly NewsItem[]>([]);
+  const [newsProblem, setNewsProblem] = useState<string | null>(null);
 
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const [runs, setRuns] = useState<RunSummary[]>([]);
@@ -264,6 +275,44 @@ export function ChartWorkspace({
     if (loaded === null) return [];
     return loaded.timeframe === "H4" ? aggregateH4(loaded.bars) : loaded.bars;
   }, [loaded]);
+
+  // Calendar releases over the loaded bars, for the flags and the legend.
+  const newsFrom = bars[0]?.time;
+  const newsTo = bars[bars.length - 1]?.time;
+  useEffect(() => {
+    if (newsMode === "none" || newsFrom === undefined || newsTo === undefined) {
+      setNews([]);
+      return;
+    }
+    let cancelled = false;
+    const query = new URLSearchParams({ symbol, from: String(newsFrom), to: String(newsTo + 86_400), importance: newsMode });
+    fetch(`/api/news?${query}`, { cache: "no-store" })
+      .then(async (response) => (await response.json()) as NewsResponse | ApiError)
+      .then((body) => {
+        if (cancelled) return;
+        if ("error" in body) {
+          setNews([]);
+          setNewsProblem(body.error);
+        } else {
+          setNews(body.items);
+          setNewsProblem(body.problem);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [symbol, newsMode, newsFrom, newsTo]);
+
+  const newsByBar = useMemo(() => {
+    const map = new Map<number, NewsItem[]>();
+    for (const item of news) {
+      const index = barAtOrBefore(bars, item.time);
+      if (index === -1) continue;
+      map.set(index, [...(map.get(index) ?? []), item]);
+    }
+    return map;
+  }, [news, bars]);
 
   const studies = useMemo<Studies>(() => {
     const closes = bars.map((bar) => bar.close);
@@ -433,6 +482,14 @@ export function ChartWorkspace({
             <input type="checkbox" checked={showSwings} onChange={(event) => setShowSwings(event.target.checked)} />
             <span className="swatch split" /> Развороты ±10
           </label>
+          <label title="События экономического календаря MT5 по валютам инструмента (у золота и индексов — USD)">
+            Новости
+            <select value={newsMode} onChange={(event) => setNewsMode(event.target.value as typeof newsMode)}>
+              <option value="none">не показывать</option>
+              <option value="HIGH">важные</option>
+              <option value="MODERATE">важные и средние</option>
+            </select>
+          </label>
           <span className="toolbar-title">Линии</span>
           <button
             type="button"
@@ -506,6 +563,19 @@ export function ChartWorkspace({
             </>
           )}
         </div>
+        {shownIndex !== null && (newsByBar.get(shownIndex) ?? []).length > 0 && (
+          <ul className="news-legend">
+            {(newsByBar.get(shownIndex) ?? []).map((item) => (
+              <li key={`${item.time}-${item.code}-${item.currency}`}>
+                <span className="news-dot" style={{ background: NEWS_COLORS[item.importance] }} />
+                <strong>{item.currency}</strong> {formatServer(item.time + ((shownBar?.serverTime ?? 0) - (shownBar?.time ?? 0)), true).slice(11)} {item.name}
+                {": "}
+                факт {newsValue(item, item.actual)}, прогноз {newsValue(item, item.forecast)}, пред. {newsValue(item, item.previous)}
+              </li>
+            ))}
+          </ul>
+        )}
+        {newsMode !== "none" && newsProblem !== null && <p className="note bad small-text">Новостей нет: {newsProblem}.</p>}
 
         {error !== null && <div className="card error">{error}</div>}
         <ProChart
@@ -515,6 +585,7 @@ export function ChartWorkspace({
           intraday={intraday}
           studies={studies}
           trades={trades}
+          news={news}
           lines={lines}
           drawing={drawing}
           focus={focus}

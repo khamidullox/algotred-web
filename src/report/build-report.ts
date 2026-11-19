@@ -24,6 +24,8 @@ import {
   type Excursions,
   type MetricsBlock,
 } from "./metrics";
+import type { NewsEvent } from "../data/calendar";
+import { newsBreakdown, type NewsBreakdown } from "./news";
 import type { SavedRun, SymbolCostNote } from "./save-run";
 import { decide, type Verdict } from "./verdict";
 
@@ -76,12 +78,16 @@ export interface Report {
   readonly verdict: Verdict;
   readonly skipped: ReadonlyArray<{ readonly reason: SkipReason; readonly count: number }>;
   readonly warnings: readonly string[];
+  /** Trades near important news and the rest; absent in reports made before 2026-11-19 or without a calendar. */
+  readonly news?: NewsBreakdown | null;
 }
 
 export interface ReportInput {
   readonly run: SavedRun;
   readonly stress: BacktestResult;
   readonly exposureFlipped: BacktestResult;
+  /** The economic calendar, or null when the config has none. */
+  readonly news?: readonly NewsEvent[] | null;
 }
 
 function countSkipped(result: BacktestResult): Array<{ reason: SkipReason; count: number }> {
@@ -92,7 +98,7 @@ function countSkipped(result: BacktestResult): Array<{ reason: SkipReason; count
     .map(([reason, count]) => ({ reason, count }));
 }
 
-export function buildReport({ run, stress, exposureFlipped }: ReportInput): Report {
+export function buildReport({ run, stress, exposureFlipped, news }: ReportInput): Report {
   const trades: readonly Trade[] = run.trades;
   const initial = run.initialBalance;
   const afterCosts = computeMetrics(trades, initial, NET);
@@ -172,5 +178,6 @@ export function buildReport({ run, stress, exposureFlipped }: ReportInput): Repo
     verdict: decide(afterCosts, bySymbol, bootstrap, run.strategy, run.dataset),
     skipped: countSkipped(run),
     warnings,
+    news: news === undefined || news === null ? null : newsBreakdown(trades, news, initial, run.span, run.symbols),
   };
 }

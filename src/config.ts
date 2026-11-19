@@ -132,6 +132,21 @@ export const configSchema = z.strictObject({
     })
     .optional(),
   usdExposureLimit: z.boolean(),
+  /**
+   * The MT5 economic calendar exported by tools/mt5/ExportCalendar.mq5.
+   * Optional: without it strategies and reports simply see no news.
+   */
+  calendar: z
+    .strictObject({
+      file: z.string().min(1),
+      /**
+       * For exports without a <UTC> column (script 1.00): the server's offset
+       * from UTC, in hours, at the moment of export. MT5 applies that one
+       * offset to the whole history (checked 2026-11-19).
+       */
+      exportOffsetHours: z.number().min(-12).max(14).optional(),
+    })
+    .optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;

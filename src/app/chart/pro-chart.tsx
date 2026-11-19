@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type * as LW from "lightweight-charts";
-import type { ChartBar, ChartTrade } from "../_lib/api-types";
+import type { ChartBar, ChartTrade, NewsItem } from "../_lib/api-types";
 import {
   barAtOrBefore,
   exitBarIndex,
@@ -35,6 +35,12 @@ export const SMA_FAST_COLOR = "#e8a33d";
 export const SMA_SLOW_COLOR = "#b36bd6";
 export const CHANNEL_COLOR = "#2a9db5";
 const RSI_COLOR = "#7e57c2";
+export const NEWS_COLORS: Readonly<Record<NewsItem["importance"], string>> = {
+  HIGH: "#e0544f",
+  MODERATE: "#e8a33d",
+  LOW: "#8a8f98",
+  NONE: "#8a8f98",
+};
 const MOMENT_COLOR = "#8a8f98";
 
 function cssVar(name: string): string {
@@ -76,6 +82,8 @@ export function ProChart(props: {
   intraday: boolean;
   studies: Studies;
   trades: readonly ChartTrade[];
+  /** Economic calendar releases to flag above the candles. */
+  news: readonly NewsItem[];
   lines: readonly number[];
   drawing: boolean;
   focus: Focus | null;
@@ -83,7 +91,7 @@ export function ProChart(props: {
   onHover: (index: number | null) => void;
   onEdge: (side: "older" | "newer") => void;
 }) {
-  const { bars, dataKey, digits, intraday, studies, trades, lines, focus } = props;
+  const { bars, dataKey, digits, intraday, studies, trades, news, lines, focus } = props;
   const container = useRef<HTMLDivElement>(null);
   const library = useRef<typeof LW | null>(null);
   const chartRef = useRef<LW.IChartApi | null>(null);
@@ -355,6 +363,24 @@ export function ProChart(props: {
           extras.current.push(trend);
         }
       }
+      // Calendar releases: one flag per bar and currency, coloured by importance.
+      const flagged = new Set<string>();
+      for (const item of news) {
+        if (item.time > last.time + (bars.length > 1 ? last.time - (bars[bars.length - 2] as ChartBar).time : 0)) continue;
+        const index = indexOf(item.time);
+        if (index === -1) continue;
+        const key = `${index}|${item.currency}`;
+        if (flagged.has(key)) continue;
+        flagged.add(key);
+        markers.push({
+          time: at(index),
+          position: "aboveBar",
+          shape: "circle",
+          color: NEWS_COLORS[item.importance],
+          text: item.currency,
+          size: 0.7,
+        });
+      }
       segments(stops, { color: bad, lineStyle: lw.LineStyle.Dashed });
       segments(takes, { color: good, lineStyle: lw.LineStyle.Dashed });
       segments(levels, { color: accent, lineStyle: lw.LineStyle.Dotted, lineWidth: 2 });
@@ -393,7 +419,7 @@ export function ProChart(props: {
       quiet.current = false;
     }, 150);
     return () => window.clearTimeout(release);
-  }, [ready, bars, dataKey, digits, intraday, studies, trades]);
+  }, [ready, bars, dataKey, digits, intraday, studies, trades, news]);
 
   // Centre on a requested moment once its bar is loaded.
   useEffect(() => {

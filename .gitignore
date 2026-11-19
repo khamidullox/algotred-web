@@ -12,3 +12,6 @@ data/raw/*
 
 # Runs on dev are working material; test and holdout runs are the record and are committed
 reports/dev/
+
+# Compiled MT5 programs: built from the .mq5 next to them
+tools/mt5/*.ex5

@@ -1,5 +1,6 @@
 import { CliUsageError, parseCliArgs, USAGE } from "./cli-args";
 import { ConfigError, loadConfig, type Config } from "./config";
+import { readCalendar } from "./data/calendar";
 import { readAllSeries } from "./data/load";
 import {
   assertDatasetAccess,
@@ -83,22 +84,28 @@ function backtest(
 
   const started = Date.now();
   const data = buildSymbolData(inputs, report.commonRange);
-  const result = runBacktest({ data, strategy, span, config });
+  // The economic calendar is optional: strategies see it through ctx.news,
+  // the report uses it for its news section.
+  const calendar = readCalendar(config);
+  if (calendar.problem !== undefined) console.log(`Календарь новостей не загружен: ${calendar.problem}.`);
+  const news = calendar.events;
+  const result = runBacktest({ data, strategy, span, config, news });
   // Two more runs feed the report: doubled costs (TZ 7.3) and the other
   // setting of the dollar limit (TZ 7.5).
-  const stress = runBacktest({ data, strategy, span, config, options: { costMultiplier: 2 } });
+  const stress = runBacktest({ data, strategy, span, config, news, options: { costMultiplier: 2 } });
   const exposureFlipped = runBacktest({
     data,
     strategy,
     span,
     config,
+    news,
     options: { usdExposureLimit: !result.usdExposureLimit },
   });
   const finishedAt = Date.now();
 
   const run = toSavedRun(result, args.dataset, config, finishedAt);
   const files = saveRun(run, config);
-  const built = buildReport({ run, stress, exposureFlipped });
+  const built = buildReport({ run, stress, exposureFlipped, news: calendar.file === null ? null : news });
   const markdown = formatReport(built);
   saveReport(built, markdown, files.directory);
 

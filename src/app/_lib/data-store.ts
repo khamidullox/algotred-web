@@ -2,6 +2,7 @@
 // Nothing here computes anything about the market: it reads files and calls the engine.
 import { statSync } from "node:fs";
 import type { Config, SymbolName, Timeframe } from "../../config";
+import { readCalendar, type CalendarInput } from "../../data/calendar";
 import { allSeries, seriesFileName, seriesFilePath } from "../../data/files";
 import { readSeriesInput, type SeriesInput } from "../../data/load";
 import type { SeriesId } from "../../data/types";
@@ -67,6 +68,26 @@ export function getSeries(config: Config, id: SeriesId): SeriesInput {
     seriesCache.delete(oldest);
   }
   return input;
+}
+
+// The calendar takes a second or two to parse: kept while the file is unchanged.
+let calendarCache: { key: string; calendar: CalendarInput } | null = null;
+
+export function getCalendar(config: Config): CalendarInput {
+  const file = config.calendar?.file;
+  let key = "none";
+  if (file !== undefined) {
+    try {
+      const stat = statSync(file);
+      key = `${file}|${stat.mtimeMs}:${stat.size}|${config.calendar?.exportOffsetHours ?? ""}`;
+    } catch {
+      key = `${file}|missing`;
+    }
+  }
+  if (calendarCache?.key === key) return calendarCache.calendar;
+  const calendar = readCalendar(config);
+  calendarCache = { key, calendar };
+  return calendar;
 }
 
 let reportCache: { key: string; report: ValidationReport } | null = null;

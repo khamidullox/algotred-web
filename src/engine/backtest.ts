@@ -1,5 +1,6 @@
 import { TIMEFRAMES, type Config, type SymbolName, type Timeframe } from "../config";
 import { lowerBound } from "../data/bars";
+import { eventsBetween, type NewsEvent } from "../data/calendar";
 import { formatInZone, nextZoneDay, type TimeSpan } from "../data/time";
 import { MINUTE_MS, TIMEFRAME_MINUTES, type Bar } from "../data/types";
 import { ClosedBarsView } from "./closed-bars";
@@ -66,6 +67,8 @@ export interface BacktestInput {
   readonly span: TimeSpan;
   readonly config: Config;
   readonly options?: BacktestOptions;
+  /** The economic calendar, sorted by time; strategies see it through `ctx.news`. */
+  readonly news?: readonly NewsEvent[];
 }
 
 interface Position {
@@ -171,7 +174,7 @@ export function runBacktest(input: BacktestInput): BacktestResult {
 
   const states = runData
     .map((data) =>
-      createState(data, strategy, config, costMultiplier, span, zone),
+      createState(data, strategy, config, costMultiplier, span, zone, input.news ?? []),
     )
     .filter((state) => state.index < state.end);
 
@@ -702,6 +705,7 @@ function createState(
   costMultiplier: number,
   span: TimeSpan,
   zone: string,
+  news: readonly NewsEvent[],
 ): SymbolState {
   const spec = symbolSpec(config, data.symbol);
   const exec = data.bars[strategy.executionTimeframe];
@@ -751,6 +755,11 @@ function createState(
           ? null
           : { direction: order.signal.direction, price: order.signal.limit.price, signalTime: order.signalTime };
       },
+      // The schedule is public in advance; the figures only once released.
+      news: (from, to, filter) =>
+        eventsBetween(news, from, to, filter).map((event) =>
+          event.time <= state.now ? event : { ...event, actual: null, revisedPrevious: null },
+        ),
     },
   };
   // History before the first bar of the span is closed from the start, and must

@@ -23,5 +23,6 @@
     "US2000": { "digits": 2, "contractSize": 10, "usdSide": "quote", "commissionPerLotRoundTrip": 0, "tripleSwapDay": "friday", "timeZoneCheck": false, "swapLongPips": -4.9956, "swapShortPips": -1.3586, "minSpreadPoints": 30, "slippagePoints": 12, "swapReferencePrice": 2811.67 }
   },
   "datasets": { "testStart": "2021-12-09", "holdoutStart": "2024-11-16" },
-  "usdExposureLimit": false
+  "usdExposureLimit": false,
+  "calendar": { "file": "data/raw/calendar/mt5_calendar.csv", "exportOffsetHours": 2 }
 }

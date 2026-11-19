@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ConfigError, loadConfig, type Config } from "../../../../config";
-import { readReport, readRun } from "../../../_lib/reports-store";
+import { newsForRun, readReport, readRun } from "../../../_lib/reports-store";
 import { ReportView } from "./report-view";
 
 export const dynamic = "force-dynamic";
@@ -39,5 +39,7 @@ export default async function ReportPage(props: {
     );
   }
 
-  return <ReportView id={id} report={report} />;
+  // Reports made before the news section existed get it worked out here.
+  const news = report.news ?? newsForRun(config, id);
+  return <ReportView id={id} report={report} news={news} newsComputedLater={report.news === undefined || report.news === null} />;
 }

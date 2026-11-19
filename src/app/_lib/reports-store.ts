@@ -7,6 +7,8 @@ import type { Report } from "../../report/build-report";
 import { REPORT_JSON, REPORT_MD, type SavedRun } from "../../report/save-run";
 import type { ChartTrade, RunResponse, RunSummary } from "./api-types";
 import { parseReason } from "./trade-reason";
+import { newsBreakdown, type NewsBreakdown } from "../../report/news";
+import { getCalendar } from "./data-store";
 
 /** `dev/2026-11-17_12-30-00_TrendD1`; anything else is refused before touching the disk. */
 const RUN_ID = /^(dev|test|holdout)\/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_[A-Za-z0-9-]+$/;
@@ -85,6 +87,20 @@ export function listReports(config: Config): ReportListItem[] {
     summary,
     report: readReport(config, summary.id),
   }));
+}
+
+/**
+ * The news section for a run whose report predates it (2026-11-19), worked
+ * out from its trades and the calendar. Null without a run or a calendar.
+ */
+export function newsForRun(config: Config, id: string): NewsBreakdown | null {
+  if (!isRunId(id)) return null;
+  const file = path.resolve(config.reportsDir, id, "run.json");
+  if (!existsSync(file)) return null;
+  const run = readSavedRun(file);
+  const calendar = getCalendar(config);
+  if (run === null || calendar.events.length === 0) return null;
+  return newsBreakdown(run.trades, calendar.events, run.initialBalance, run.span, run.symbols ?? [...new Set(run.trades.map((trade) => trade.symbol))]);
 }
 
 /** The trades of one run in the shape the chart draws. Null when the id is unknown. */

@@ -229,3 +229,22 @@ main:has(.terminal) {
 .nowrap {
   white-space: nowrap;
 }
+
+.news-legend {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.news-legend li {
+  margin: 2px 0;
+}
+
+.news-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+}

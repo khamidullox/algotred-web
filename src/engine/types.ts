@@ -1,4 +1,5 @@
 import type { SymbolName, Timeframe } from "../config";
+import type { NewsEvent, NewsFilter } from "../data/calendar";
 import type { TimeSpan } from "../data/time";
 import type { Bar } from "../data/types";
 import type { SymbolSpec } from "./symbols";
@@ -50,6 +51,13 @@ export interface MarketContext {
   readonly position: OpenPosition | null;
   /** The resting limit order on this symbol, if any (TZ 17.10). */
   readonly order: RestingOrder | null;
+  /**
+   * Economic calendar events in [from, to), UTC ms, oldest first. The
+   * schedule is visible ahead, as it is in a real calendar; the actual value
+   * and the revised previous one only once the release time has come
+   * (`time <= now`), so nothing leaks from the future. Empty without a calendar.
+   */
+  news(from: number, to: number, filter?: NewsFilter): readonly NewsEvent[];
 }
 
 /** A limit order waiting for its price (TZ 17.10). */
