@@ -1,0 +1,652 @@
+{
+  "version": 1,
+  "strategy": "Rsi2IndexControl",
+  "params": {
+    "rsiPeriod": 2,
+    "trendSmaPeriod": 200,
+    "atrPeriod": 20,
+    "atrMultiple": 2,
+    "neutralRsiLow": 45,
+    "neutralRsiHigh": 55,
+    "holdDays": 4,
+    "signalTimeframe": "D1",
+    "executionTimeframe": "H1"
+  },
+  "dataset": "test",
+  "span": {
+    "start": 1639000800000,
+    "end": 1731708000000
+  },
+  "days": {
+    "firstDay": "2021-12-09",
+    "lastDay": "2024-11-15",
+    "days": 1073
+  },
+  "brokerTimeZone": "Europe/Athens",
+  "finishedAt": 1795097762660,
+  "costs": {
+    "minSpreadPoints": 5,
+    "commissionPerLotRoundTrip": 7,
+    "slippagePips": 0.2
+  },
+  "symbolCosts": {
+    "US500": {
+      "minSpreadPoints": 60,
+      "commissionPerLotRoundTrip": 0,
+      "slippagePoints": 24,
+      "tripleSwapDay": "friday",
+      "swapReferencePrice": 7580.9
+    },
+    "US30": {
+      "minSpreadPoints": 150,
+      "commissionPerLotRoundTrip": 0,
+      "slippagePoints": 60,
+      "tripleSwapDay": "friday",
+      "swapReferencePrice": 51788.2
+    },
+    "US2000": {
+      "minSpreadPoints": 30,
+      "commissionPerLotRoundTrip": 0,
+      "slippagePoints": 12,
+      "tripleSwapDay": "friday",
+      "swapReferencePrice": 2811.67
+    }
+  },
+  "initialCapitalUsd": 10000,
+  "riskPerTradePct": 0.5,
+  "usdExposureLimit": false,
+  "swapAccounted": true,
+  "afterCosts": {
+    "trades": 95,
+    "wins": 44,
+    "losses": 51,
+    "flat": 0,
+    "winRate": 0.4631578947368421,
+    "meanR": -0.05046900427052179,
+    "expectancyR": -0.050469004270521756,
+    "meanUsd": -1.847168903585572,
+    "totalUsd": -175.48104584062935,
+    "profitFactor": 0.8366312614001413,
+    "maxDrawdownPct": 0.03541579316013939,
+    "maxDrawdownUsd": 354.64583063624923,
+    "longestLosingStreak": 7,
+    "finalBalance": 9824.518954159372
+  },
+  "beforeCosts": {
+    "trades": 95,
+    "wins": 47,
+    "losses": 47,
+    "flat": 1,
+    "winRate": 0.49473684210526314,
+    "meanR": -0.0185059694351018,
+    "expectancyR": -0.01850596943510166,
+    "meanUsd": -0.436115789473687,
+    "totalUsd": -41.43100000000027,
+    "profitFactor": 0.9591120330885508,
+    "maxDrawdownPct": 0.033035282841796736,
+    "maxDrawdownUsd": 330.88800000000447,
+    "longestLosingStreak": 6,
+    "finalBalance": 9958.569
+  },
+  "costTotals": {
+    "spreadUsd": 32.937,
+    "slippageUsd": 13.704,
+    "commissionUsd": 0,
+    "swapUsd": -87.40904584062945
+  },
+  "bySymbol": [
+    {
+      "key": "US500",
+      "metrics": {
+        "trades": 40,
+        "wins": 19,
+        "losses": 21,
+        "flat": 0,
+        "winRate": 0.475,
+        "meanR": -0.09389451018889064,
+        "expectancyR": -0.09389451018889058,
+        "meanUsd": -3.14213688447296,
+        "totalUsd": -125.6854753789184,
+        "profitFactor": 0.7535073127611622,
+        "maxDrawdownPct": 0.028095906281449125,
+        "maxDrawdownUsd": 281.3461208000663,
+        "longestLosingStreak": 4,
+        "finalBalance": 9874.314524621084
+      }
+    },
+    {
+      "key": "US2000",
+      "metrics": {
+        "trades": 55,
+        "wins": 25,
+        "losses": 30,
+        "flat": 0,
+        "winRate": 0.45454545454545453,
+        "meanR": -0.018886818148071676,
+        "expectancyR": -0.018886818148071804,
+        "meanUsd": -0.9053740083947394,
+        "totalUsd": -49.79557046171067,
+        "profitFactor": 0.911748405381696,
+        "maxDrawdownPct": 0.014508270497742524,
+        "maxDrawdownUsd": 145.08270497742524,
+        "longestLosingStreak": 4,
+        "finalBalance": 9950.204429538288
+      }
+    }
+  ],
+  "byYear": [
+    {
+      "key": "2021",
+      "metrics": {
+        "trades": 4,
+        "wins": 1,
+        "losses": 3,
+        "flat": 0,
+        "winRate": 0.25,
+        "meanR": -0.32646785979580306,
+        "expectancyR": -0.32646785979580306,
+        "meanUsd": -12.659473484524721,
+        "totalUsd": -50.637893938098884,
+        "profitFactor": 0.2138707170446255,
+        "maxDrawdownPct": 0.006432558951953234,
+        "maxDrawdownUsd": 64.41420646198276,
+        "longestLosingStreak": 3,
+        "finalBalance": 9949.362106061903
+      }
+    },
+    {
+      "key": "2022",
+      "metrics": {
+        "trades": 29,
+        "wins": 11,
+        "losses": 18,
+        "flat": 0,
+        "winRate": 0.3793103448275862,
+        "meanR": -0.23334544293510592,
+        "expectancyR": -0.23334544293510592,
+        "meanUsd": -9.171946585975553,
+        "totalUsd": -265.98645099329104,
+        "profitFactor": 0.4322211228945897,
+        "maxDrawdownPct": 0.027050421494329204,
+        "maxDrawdownUsd": 270.504214943292,
+        "longestLosingStreak": 7,
+        "finalBalance": 9734.013549006711
+      }
+    },
+    {
+      "key": "2023",
+      "metrics": {
+        "trades": 28,
+        "wins": 15,
+        "losses": 13,
+        "flat": 0,
+        "winRate": 0.5357142857142857,
+        "meanR": 0.11267789460393048,
+        "expectancyR": 0.11267789460393046,
+        "meanUsd": 4.9596644008889665,
+        "totalUsd": 138.87060322489106,
+        "profitFactor": 1.7570166228707016,
+        "maxDrawdownPct": 0.007072090152084677,
+        "maxDrawdownUsd": 71.55659882967302,
+        "longestLosingStreak": 3,
+        "finalBalance": 10138.870603224888
+      }
+    },
+    {
+      "key": "2024",
+      "metrics": {
+        "trades": 34,
+        "wins": 17,
+        "losses": 17,
+        "flat": 0,
+        "winRate": 0.5,
+        "meanR": 0.0036280244026959544,
+        "expectancyR": 0.003628024402695912,
+        "meanUsd": 0.06684399605498303,
+        "totalUsd": 2.272695865869423,
+        "profitFactor": 1.006351617161301,
+        "maxDrawdownPct": 0.015344764557525443,
+        "maxDrawdownUsd": 154.95931067802485,
+        "longestLosingStreak": 4,
+        "finalBalance": 10002.27269586587
+      }
+    }
+  ],
+  "byHourUtc": [
+    {
+      "key": "00",
+      "metrics": {
+        "trades": 8,
+        "wins": 3,
+        "losses": 5,
+        "flat": 0,
+        "winRate": 0.375,
+        "meanR": -0.19007171363479025,
+        "expectancyR": -0.19007171363479022,
+        "meanUsd": -7.2254135053272,
+        "totalUsd": -57.8033080426176,
+        "profitFactor": 0.43888588716629834,
+        "maxDrawdownPct": 0.009849748147076025,
+        "maxDrawdownUsd": 98.49748147076025,
+        "longestLosingStreak": 3,
+        "finalBalance": 9942.196691957382
+      }
+    },
+    {
+      "key": "21",
+      "metrics": {
+        "trades": 9,
+        "wins": 3,
+        "losses": 6,
+        "flat": 0,
+        "winRate": 0.3333333333333333,
+        "meanR": -0.17819633673847757,
+        "expectancyR": -0.1781963367384775,
+        "meanUsd": -8.282654899225072,
+        "totalUsd": -74.54389409302564,
+        "profitFactor": 0.46449684349565296,
+        "maxDrawdownPct": 0.008065356822390339,
+        "maxDrawdownUsd": 80.68515761618619,
+        "longestLosingStreak": 4,
+        "finalBalance": 9925.456105906975
+      }
+    },
+    {
+      "key": "22",
+      "metrics": {
+        "trades": 47,
+        "wins": 27,
+        "losses": 20,
+        "flat": 0,
+        "winRate": 0.574468085106383,
+        "meanR": 0.07532375944475204,
+        "expectancyR": 0.07532375944475206,
+        "meanUsd": 3.7097540294744347,
+        "totalUsd": 174.35843938529842,
+        "profitFactor": 1.4275362062608012,
+        "maxDrawdownPct": 0.011812801561194448,
+        "maxDrawdownUsd": 118.28007763593268,
+        "longestLosingStreak": 4,
+        "finalBalance": 10174.358439385296
+      }
+    },
+    {
+      "key": "23",
+      "metrics": {
+        "trades": 31,
+        "wins": 11,
+        "losses": 20,
+        "flat": 0,
+        "winRate": 0.3548387096774194,
+        "meanR": -0.16807843096381592,
+        "expectancyR": -0.16807843096381597,
+        "meanUsd": -7.015880099686585,
+        "totalUsd": -217.49228309028413,
+        "profitFactor": 0.4871683528384806,
+        "maxDrawdownPct": 0.027606820168709693,
+        "maxDrawdownUsd": 276.44852186953176,
+        "longestLosingStreak": 6,
+        "finalBalance": 9782.507716909719
+      }
+    }
+  ],
+  "byWeekday": [
+    {
+      "key": "Пн",
+      "metrics": {
+        "trades": 17,
+        "wins": 7,
+        "losses": 10,
+        "flat": 0,
+        "winRate": 0.4117647058823529,
+        "meanR": -0.09341002220511338,
+        "expectancyR": -0.09341002220511338,
+        "meanUsd": -3.6411088358563375,
+        "totalUsd": -61.898850209557736,
+        "profitFactor": 0.6865279600166531,
+        "maxDrawdownPct": 0.012100837391870118,
+        "maxDrawdownUsd": 121.00837391870118,
+        "longestLosingStreak": 4,
+        "finalBalance": 9938.101149790442
+      }
+    },
+    {
+      "key": "Вт",
+      "metrics": {
+        "trades": 23,
+        "wins": 10,
+        "losses": 13,
+        "flat": 0,
+        "winRate": 0.43478260869565216,
+        "meanR": -0.12137735600627073,
+        "expectancyR": -0.12137735600627075,
+        "meanUsd": -4.713515531865853,
+        "totalUsd": -108.41085723291462,
+        "profitFactor": 0.7125325032867942,
+        "maxDrawdownPct": 0.017402813505859194,
+        "maxDrawdownUsd": 174.02813505859194,
+        "longestLosingStreak": 6,
+        "finalBalance": 9891.589142767089
+      }
+    },
+    {
+      "key": "Ср",
+      "metrics": {
+        "trades": 20,
+        "wins": 10,
+        "losses": 10,
+        "flat": 0,
+        "winRate": 0.5,
+        "meanR": -0.12953764082156757,
+        "expectancyR": -0.1295376408215675,
+        "meanUsd": -5.178935792022327,
+        "totalUsd": -103.57871584044653,
+        "profitFactor": 0.5670949607825237,
+        "maxDrawdownPct": 0.01122858214925418,
+        "maxDrawdownUsd": 112.2858214925418,
+        "longestLosingStreak": 2,
+        "finalBalance": 9896.421284159549
+      }
+    },
+    {
+      "key": "Чт",
+      "metrics": {
+        "trades": 20,
+        "wins": 10,
+        "losses": 10,
+        "flat": 0,
+        "winRate": 0.5,
+        "meanR": 0.15043970252453642,
+        "expectancyR": 0.1504397025245364,
+        "meanUsd": 6.772617687271461,
+        "totalUsd": 135.45235374542924,
+        "profitFactor": 2.1868062963466675,
+        "maxDrawdownPct": 0.003643403096006659,
+        "maxDrawdownUsd": 36.43403096006659,
+        "longestLosingStreak": 3,
+        "finalBalance": 10135.452353745433
+      }
+    },
+    {
+      "key": "Пт",
+      "metrics": {
+        "trades": 15,
+        "wins": 7,
+        "losses": 8,
+        "flat": 0,
+        "winRate": 0.4666666666666667,
+        "meanR": -0.05552980494185268,
+        "expectancyR": -0.05552980494185267,
+        "meanUsd": -2.4696650868759793,
+        "totalUsd": -37.04497630313969,
+        "profitFactor": 0.7465430052551681,
+        "maxDrawdownPct": 0.007081490450615005,
+        "maxDrawdownUsd": 70.91246133173263,
+        "longestLosingStreak": 2,
+        "finalBalance": 9962.955023696859
+      }
+    }
+  ],
+  "customerWindow": {
+    "trades": 0,
+    "wins": 0,
+    "losses": 0,
+    "flat": 0,
+    "winRate": null,
+    "meanR": null,
+    "expectancyR": null,
+    "meanUsd": null,
+    "totalUsd": 0,
+    "profitFactor": null,
+    "maxDrawdownPct": 0,
+    "maxDrawdownUsd": 0,
+    "longestLosingStreak": 0,
+    "finalBalance": 10000
+  },
+  "withoutMondayMorning": {
+    "trades": 84,
+    "wins": 41,
+    "losses": 43,
+    "flat": 0,
+    "winRate": 0.4880952380952381,
+    "meanR": -0.03965807645766325,
+    "expectancyR": -0.03965807645766323,
+    "meanUsd": -1.453498782878114,
+    "totalUsd": -122.09389776176158,
+    "profitFactor": 0.8675449642782048,
+    "maxDrawdownPct": 0.03243872117977753,
+    "maxDrawdownUsd": 324.8340977586231,
+    "longestLosingStreak": 7,
+    "finalBalance": 9877.906102238241
+  },
+  "withoutFridayAfternoon": {
+    "trades": 95,
+    "wins": 44,
+    "losses": 51,
+    "flat": 0,
+    "winRate": 0.4631578947368421,
+    "meanR": -0.05046900427052179,
+    "expectancyR": -0.050469004270521756,
+    "meanUsd": -1.847168903585572,
+    "totalUsd": -175.48104584062935,
+    "profitFactor": 0.8366312614001413,
+    "maxDrawdownPct": 0.03541579316013939,
+    "maxDrawdownUsd": 354.64583063624923,
+    "longestLosingStreak": 7,
+    "finalBalance": 9824.518954159372
+  },
+  "withoutBoth": {
+    "trades": 84,
+    "wins": 41,
+    "losses": 43,
+    "flat": 0,
+    "winRate": 0.4880952380952381,
+    "meanR": -0.03965807645766325,
+    "expectancyR": -0.03965807645766323,
+    "meanUsd": -1.453498782878114,
+    "totalUsd": -122.09389776176158,
+    "profitFactor": 0.8675449642782048,
+    "maxDrawdownPct": 0.03243872117977753,
+    "maxDrawdownUsd": 324.8340977586231,
+    "longestLosingStreak": 7,
+    "finalBalance": 9877.906102238241
+  },
+  "bootstrap": {
+    "repeats": 10000,
+    "seed": 1,
+    "meanR": -0.05046900427052179,
+    "lower": -0.16857034977235788,
+    "upper": 0.06896644324857733
+  },
+  "excursions": {
+    "all": {
+      "trades": 95,
+      "medianMaeR": 0.45372801782446437,
+      "medianMfeR": 0.3435549817086299,
+      "mfeAtLeastHalfR": 0.4,
+      "mfeAtLeast1R": 0.12631578947368421,
+      "maeAtLeastHalfR": 0.4105263157894737
+    },
+    "wins": {
+      "trades": 44,
+      "medianMaeR": 0.20961218183062136,
+      "medianMfeR": 0.7489314132679166,
+      "mfeAtLeastHalfR": 0.7272727272727273,
+      "mfeAtLeast1R": 0.2727272727272727,
+      "maeAtLeastHalfR": 0.11363636363636363
+    },
+    "losses": {
+      "trades": 51,
+      "medianMaeR": 0.6688578471651605,
+      "medianMfeR": 0.16431110009091562,
+      "mfeAtLeastHalfR": 0.11764705882352941,
+      "mfeAtLeast1R": 0,
+      "maeAtLeastHalfR": 0.6666666666666666
+    }
+  },
+  "stress": {
+    "costMultiplier": 2,
+    "afterCosts": {
+      "trades": 95,
+      "wins": 44,
+      "losses": 51,
+      "flat": 0,
+      "winRate": 0.4631578947368421,
+      "meanR": -0.06428771508617435,
+      "expectancyR": -0.0642877150861744,
+      "meanUsd": -2.4299863643861785,
+      "totalUsd": -230.84870461668697,
+      "profitFactor": 0.791448138551621,
+      "maxDrawdownPct": 0.037605794381899135,
+      "maxDrawdownUsd": 376.5597538218717,
+      "longestLosingStreak": 7,
+      "finalBalance": 9769.15129538332
+    },
+    "trades": 95
+  },
+  "exposure": {
+    "withLimit": {
+      "trades": 77,
+      "wins": 33,
+      "losses": 44,
+      "flat": 0,
+      "winRate": 0.42857142857142855,
+      "meanR": -0.11155478472432366,
+      "expectancyR": -0.11155478472432367,
+      "meanUsd": -4.410735133041336,
+      "totalUsd": -339.6266052441829,
+      "profitFactor": 0.6417474675616859,
+      "maxDrawdownPct": 0.03529167286531826,
+      "maxDrawdownUsd": 353.4029177680659,
+      "longestLosingStreak": 4,
+      "finalBalance": 9660.37339475582
+    },
+    "withoutLimit": {
+      "trades": 95,
+      "wins": 44,
+      "losses": 51,
+      "flat": 0,
+      "winRate": 0.4631578947368421,
+      "meanR": -0.05046900427052179,
+      "expectancyR": -0.050469004270521756,
+      "meanUsd": -1.847168903585572,
+      "totalUsd": -175.48104584062935,
+      "profitFactor": 0.8366312614001413,
+      "maxDrawdownPct": 0.03541579316013939,
+      "maxDrawdownUsd": 354.64583063624923,
+      "longestLosingStreak": 7,
+      "finalBalance": 9824.518954159372
+    },
+    "skippedByLimit": 39
+  },
+  "verdict": {
+    "code": "REJECT",
+    "criteria": [
+      {
+        "name": "Число сделок",
+        "value": "95",
+        "continueRule": "200 и больше",
+        "rejectRule": "меньше 100",
+        "status": "reject"
+      },
+      {
+        "name": "Profit Factor",
+        "value": "0.84",
+        "continueRule": "1.20 и выше",
+        "rejectRule": "1.00 и ниже",
+        "status": "reject"
+      },
+      {
+        "name": "Максимальная просадка",
+        "value": "3.5%",
+        "continueRule": "до 15.0%",
+        "rejectRule": "больше 20.0%",
+        "status": "continue"
+      },
+      {
+        "name": "Математическое ожидание, R",
+        "value": "-0.050",
+        "continueRule": "положительное",
+        "rejectRule": "отрицательное",
+        "status": "reject"
+      },
+      {
+        "name": "Доверительный интервал среднего R",
+        "value": "-0.169 … 0.069",
+        "continueRule": "нижняя граница выше нуля",
+        "rejectRule": "—",
+        "status": "between"
+      },
+      {
+        "name": "Инструменты",
+        "value": "в плюсе 0, в минусе 2 из 2",
+        "continueRule": "плюс минимум на 1 из 2",
+        "rejectRule": "минус на всех",
+        "status": "reject"
+      }
+    ],
+    "applies": true,
+    "note": "Критерии раздела 10 применяются к этому прогону."
+  },
+  "skipped": [
+    {
+      "reason": "lot-too-small",
+      "count": 42
+    }
+  ],
+  "warnings": [
+    "1 сд. закрыты концом набора по цене закрытия последней свечи."
+  ],
+  "news": {
+    "windowMinutes": 30,
+    "events": 1539,
+    "near": {
+      "trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "flat": 0,
+      "winRate": null,
+      "meanR": null,
+      "expectancyR": null,
+      "meanUsd": null,
+      "totalUsd": 0,
+      "profitFactor": null,
+      "maxDrawdownPct": 0,
+      "maxDrawdownUsd": 0,
+      "longestLosingStreak": 0,
+      "finalBalance": 10000
+    },
+    "during": {
+      "trades": 95,
+      "wins": 44,
+      "losses": 51,
+      "flat": 0,
+      "winRate": 0.4631578947368421,
+      "meanR": -0.05046900427052179,
+      "expectancyR": -0.050469004270521756,
+      "meanUsd": -1.847168903585572,
+      "totalUsd": -175.48104584062935,
+      "profitFactor": 0.8366312614001413,
+      "maxDrawdownPct": 0.03541579316013939,
+      "maxDrawdownUsd": 354.64583063624923,
+      "longestLosingStreak": 7,
+      "finalBalance": 9824.518954159372
+    },
+    "clear": {
+      "trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "flat": 0,
+      "winRate": null,
+      "meanR": null,
+      "expectancyR": null,
+      "meanUsd": null,
+      "totalUsd": 0,
+      "profitFactor": null,
+      "maxDrawdownPct": 0,
+      "maxDrawdownUsd": 0,
+      "longestLosingStreak": 0,
+      "finalBalance": 10000
+    }
+  }
+}
