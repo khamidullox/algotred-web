@@ -55,6 +55,30 @@ export interface RunSummary {
 
 export type ChartTradeExit = "stop" | "take" | "strategy" | "end-of-data" | "breakeven";
 
+export interface TradeMoment {
+  /** As written by the strategy: «пробой», «ретест», «провал», «касание», … */
+  readonly label: string;
+  /** UTC seconds of the bar the strategy named (its open, server time converted). */
+  readonly time: number;
+}
+
+export interface TrendPoint {
+  /** UTC seconds. */
+  readonly time: number;
+  readonly price: number;
+}
+
+/** What the chart can draw from a trade's `reason` text (see trade-reason.ts). */
+export interface ReasonMarks {
+  /** Price of the level the trade was built on, when the strategy names one. */
+  readonly level: number | null;
+  /** When the level appeared, if the text says so; UTC seconds. */
+  readonly levelFrom: number | null;
+  readonly moments: readonly TradeMoment[];
+  /** ThreeTouchTrendD1: the two swing points of the line and the touch, on the line. */
+  readonly trendLine: readonly TrendPoint[] | null;
+}
+
 /** What the chart needs to draw one trade. Times in UTC seconds, like ChartBar. */
 export interface ChartTrade {
   n: number;
@@ -71,6 +95,7 @@ export interface ChartTrade {
   netPnlUsd: number;
   rMultiple: number;
   reason: string;
+  marks: ReasonMarks;
 }
 
 export interface RunResponse {

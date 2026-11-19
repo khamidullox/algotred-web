@@ -6,6 +6,7 @@ import { describeSpan } from "../../data/split";
 import type { Report } from "../../report/build-report";
 import { REPORT_JSON, REPORT_MD, type SavedRun } from "../../report/save-run";
 import type { ChartTrade, RunResponse, RunSummary } from "./api-types";
+import { parseReason } from "./trade-reason";
 
 /** `dev/2026-11-17_12-30-00_TrendD1`; anything else is refused before touching the disk. */
 const RUN_ID = /^(dev|test|holdout)\/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_[A-Za-z0-9-]+$/;
@@ -108,6 +109,7 @@ export function readRun(config: Config, id: string): RunResponse | null {
     netPnlUsd: trade.netPnlUsd,
     rMultiple: trade.rMultiple,
     reason: trade.reason,
+    marks: parseReason(trade.reason, run.brokerTimeZone),
   }));
   return { summary: summarize(id, run), brokerTimeZone: run.brokerTimeZone, trades };
 }
