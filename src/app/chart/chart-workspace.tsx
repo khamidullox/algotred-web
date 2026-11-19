@@ -1,15 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { SymbolName, Timeframe } from "../../config";
+import type { AnyTimeframe, SymbolName } from "../../config";
 import type { ApiError, BarsResponse, ChartBar, ChartTrade, RunResponse, RunSummary } from "../_lib/api-types";
 import { aggregateH4, atr, channel, rsiWilder, sma, swingLevels } from "../_lib/chart-math";
 import { CHANNEL_COLOR, ProChart, SMA_FAST_COLOR, SMA_SLOW_COLOR, type Focus, type Studies } from "./pro-chart";
 import { GUIDES, guideFor, type StrategyGuide, type ViewTimeframe } from "./strategy-guide";
 
-const VIEW_TIMEFRAMES: readonly ViewTimeframe[] = ["M15", "H1", "H4", "D1"];
+const VIEW_TIMEFRAMES: readonly ViewTimeframe[] = ["M1", "M5", "M15", "H1", "H4", "D1"];
 /** Bars of the file timeframe per request; H4 needs four hours per candle. */
-const CHUNK: Record<ViewTimeframe, number> = { M15: 3000, H1: 3000, H4: 5000, D1: 3000 };
+const CHUNK: Record<ViewTimeframe, number> = { M1: 3000, M5: 3000, M15: 3000, H1: 3000, H4: 5000, D1: 3000 };
 /** Beyond this many loaded bars the chart stops loading more history. */
 const MAX_BARS = 60000;
 const LINES_KEY = "algotred-chart-lines";
@@ -31,7 +31,7 @@ interface Quote {
   readonly digits: number;
 }
 
-const fileTimeframe = (view: ViewTimeframe): Timeframe => (view === "H4" ? "H1" : view);
+const fileTimeframe = (view: ViewTimeframe): AnyTimeframe => (view === "H4" ? "H1" : view);
 
 function group(symbol: string): string {
   if (/^XA[UG]/.test(symbol)) return "Металлы";
@@ -76,8 +76,8 @@ export function ChartWorkspace({
   brokerTimeZone,
 }: {
   symbols: readonly SymbolName[];
-  /** File timeframes present per symbol. */
-  timeframes: Readonly<Record<string, readonly Timeframe[]>>;
+  /** File timeframes present per symbol, M1 and M5 included when exported. */
+  timeframes: Readonly<Record<string, readonly AnyTimeframe[]>>;
   brokerTimeZone: string;
 }) {
   const [symbol, setSymbol] = useState<SymbolName>(symbols.includes("EURUSD") ? "EURUSD" : (symbols[0] as SymbolName));
@@ -114,9 +114,15 @@ export function ChartWorkspace({
   useEffect(() => setAllLines(readLines()), []);
 
   // A fresh window: the latest bars, or around a moment, or from a date.
+  // A symbol without M1 or M5 exports falls back to H1.
+  useEffect(() => {
+    if (!(timeframes[symbol] ?? []).includes(fileTimeframe(view))) setView("H1");
+  }, [symbol, view, timeframes]);
+
   useEffect(() => {
     let cancelled = false;
     const tf = fileTimeframe(view);
+    if (!(timeframes[symbol] ?? []).includes(tf)) return;
     const query = new URLSearchParams({ symbol, timeframe: tf, limit: String(CHUNK[view]) });
     if (anchor.around !== null) query.set("around", String(anchor.around));
     else if (anchor.date !== null) query.set("date", anchor.date);
@@ -150,7 +156,7 @@ export function ChartWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [symbol, view, anchor]);
+  }, [symbol, view, anchor, timeframes]);
 
   // More history when the chart is scrolled to an edge.
   const onEdge = useCallback(
@@ -366,7 +372,13 @@ export function ChartWorkspace({
                   type="button"
                   className={item === view ? "active" : undefined}
                   disabled={!available}
-                  title={item === "H4" ? "H4 собирается из H1 по времени сервера, как в MT5" : undefined}
+                  title={
+                    item === "H4"
+                      ? "H4 собирается из H1 по времени сервера, как в MT5"
+                      : !available
+                        ? `Нет выгрузки ${item} для ${symbol}: сохраните её из MT5 в папку данных`
+                        : undefined
+                  }
                   onClick={() => setView(item)}
                 >
                   {item}
@@ -627,13 +639,15 @@ function RunPanel({
                 <th>№</th>
                 <th>Напр.</th>
                 <th>Вход (сервер)</th>
-                <th>Цена</th>
+                <th>Цена входа</th>
                 <th>Стоп</th>
                 <th>Тейк</th>
-                <th>Выход</th>
+                <th>Выход (сервер)</th>
+                <th>Цена выхода</th>
+                <th>Как</th>
                 <th>R</th>
                 <th>Почему вошла</th>
-                <th></th>
+                <th>Показать</th>
               </tr>
             </thead>
             <tbody>
@@ -645,15 +659,20 @@ function RunPanel({
                   <td>{trade.entryPrice.toFixed(digits)}</td>
                   <td>{trade.stopLoss.toFixed(digits)}</td>
                   <td>{trade.takeProfit === null ? "—" : trade.takeProfit.toFixed(digits)}</td>
+                  <td>{formatInZone(trade.exitTime, brokerTimeZone)}</td>
+                  <td>{trade.exitPrice.toFixed(digits)}</td>
                   <td>{EXIT_LABELS[trade.exitReason]}</td>
                   <td className={trade.netPnlUsd >= 0 ? "ok" : "bad"}>
                     {trade.rMultiple >= 0 ? "+" : ""}
                     {trade.rMultiple.toFixed(2)}
                   </td>
                   <td className="reason-cell">{trade.reason}</td>
-                  <td>
+                  <td className="nowrap">
                     <button type="button" className="button secondary small" onClick={() => onFocus(trade.entryTime)}>
-                      На графике
+                      Вход
+                    </button>{" "}
+                    <button type="button" className="button secondary small" onClick={() => onFocus(trade.exitTime)}>
+                      Выход
                     </button>
                   </td>
                 </tr>

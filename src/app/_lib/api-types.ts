@@ -1,6 +1,6 @@
 // Shapes shared by route handlers and client components. Types only: client
 // code must never import values from the engine, which reads the file system.
-import type { Dataset, SymbolName, Timeframe } from "../../config";
+import type { AnyTimeframe, Dataset, SymbolName, Timeframe } from "../../config";
 
 export interface ChartBar {
   /** Bar open time, UTC, seconds. */
@@ -16,7 +16,7 @@ export interface ChartBar {
 
 export interface BarsResponse {
   symbol: SymbolName;
-  timeframe: Timeframe;
+  timeframe: AnyTimeframe;
   digits: number;
   total: number;
   offset: number;

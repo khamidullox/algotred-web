@@ -1,4 +1,4 @@
-import type { SymbolName, Timeframe } from "../config";
+import type { AnyTimeframe, SymbolName, Timeframe } from "../config";
 
 /** One closed candle. Prices are Bid, as exported by MT5. */
 export interface Bar {
@@ -21,7 +21,9 @@ export interface SeriesId {
   readonly timeframe: Timeframe;
 }
 
-export const TIMEFRAME_MINUTES: Readonly<Record<Timeframe, number>> = {
+export const TIMEFRAME_MINUTES: Readonly<Record<AnyTimeframe, number>> = {
+  M1: 1,
+  M5: 5,
   M15: 15,
   H1: 60,
   D1: 1440,

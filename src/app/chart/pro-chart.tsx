@@ -5,6 +5,7 @@ import type * as LW from "lightweight-charts";
 import type { ChartBar, ChartTrade } from "../_lib/api-types";
 import {
   barAtOrBefore,
+  exitBarIndex,
   lanes,
   withGaps,
   type ChannelPoint,
@@ -273,31 +274,49 @@ export function ProChart(props: {
       const stops: Segment[] = [];
       const takes: Segment[] = [];
       const levels: Segment[] = [];
+      const wins: Segment[] = [];
+      const losses: Segment[] = [];
+      const price = (value: number): string => value.toFixed(digits);
       const indexOf = (time: number): number => (time < first.time ? -1 : barAtOrBefore(bars, time));
       for (const trade of trades) {
         if (trade.exitTime < first.time || trade.entryTime > last.time) continue;
         const buy = trade.direction === "BUY";
         const entry = indexOf(trade.entryTime);
-        const exit = trade.exitTime > last.time ? -1 : indexOf(trade.exitTime);
+        const exit = trade.exitTime > last.time ? -1 : exitBarIndex(bars, indexOf(trade.exitTime), trade, digits);
         const from = entry === -1 ? 0 : entry;
         const to = exit === -1 ? bars.length - 1 : exit;
+        // Entry and exit sit exactly at their prices, joined by a line in the
+        // colour of the result, so the exit point is easy to find.
+        const won = trade.netPnlUsd >= 0;
         if (entry !== -1) {
           markers.push({
             time: at(entry),
-            position: buy ? "belowBar" : "aboveBar",
+            position: buy ? "atPriceBottom" : "atPriceTop",
+            price: trade.entryPrice,
             shape: buy ? "arrowUp" : "arrowDown",
             color: accent,
-            text: `#${trade.n} ${buy ? "BUY" : "SELL"}`,
+            text: `#${trade.n} ${buy ? "BUY" : "SELL"} ${price(trade.entryPrice)}`,
           });
         }
         if (exit !== -1) {
           markers.push({
             time: at(exit),
-            position: buy ? "aboveBar" : "belowBar",
+            position: "atPriceMiddle",
+            price: trade.exitPrice,
             shape: "circle",
-            color: trade.netPnlUsd >= 0 ? good : bad,
-            text: `${EXIT_LABELS[trade.exitReason]} ${trade.rMultiple >= 0 ? "+" : ""}${trade.rMultiple.toFixed(2)}R`,
+            color: won ? good : bad,
+            text: `выход: ${EXIT_LABELS[trade.exitReason]} ${price(trade.exitPrice)} (${trade.rMultiple >= 0 ? "+" : ""}${trade.rMultiple.toFixed(2)}R)`,
           });
+        }
+        if (to > from) {
+          // A trade cut by the edge of the loaded bars is drawn up to the edge,
+          // at the price its line would have there.
+          const total = trade.exitTime - trade.entryTime;
+          const priceAt = (time: number): number =>
+            total > 0 ? trade.entryPrice + ((trade.exitPrice - trade.entryPrice) * (time - trade.entryTime)) / total : trade.entryPrice;
+          const startValue = entry === -1 ? priceAt((bars[from] as ChartBar).time) : trade.entryPrice;
+          const endValue = exit === -1 ? priceAt((bars[to] as ChartBar).time) : trade.exitPrice;
+          (won ? wins : losses).push({ from, to, value: startValue, valueTo: endValue });
         }
         stops.push({ from, to, value: trade.stopLoss });
         if (trade.takeProfit !== null) takes.push({ from, to, value: trade.takeProfit });
@@ -339,6 +358,8 @@ export function ProChart(props: {
       segments(stops, { color: bad, lineStyle: lw.LineStyle.Dashed });
       segments(takes, { color: good, lineStyle: lw.LineStyle.Dashed });
       segments(levels, { color: accent, lineStyle: lw.LineStyle.Dotted, lineWidth: 2 });
+      segments(wins, { color: good, lineStyle: lw.LineStyle.SparseDotted, lineWidth: 2 });
+      segments(losses, { color: bad, lineStyle: lw.LineStyle.SparseDotted, lineWidth: 2 });
       markers.sort((a, b) => (a.time as number) - (b.time as number));
       markersRef.current?.setMarkers(markers);
 

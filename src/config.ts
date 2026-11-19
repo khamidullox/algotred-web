@@ -5,6 +5,11 @@ import { z } from "zod";
 
 // Fixed by the TZ (sections 5, 6, 8). Not configurable on purpose.
 export const TIMEFRAMES = ["D1", "H1", "M15"] as const;
+/**
+ * Shown on the chart page only: never validated, never loaded by the engine,
+ * never part of the common range that sets the dev/test/holdout boundaries.
+ */
+export const CHART_ONLY_TIMEFRAMES = ["M5", "M1"] as const;
 export const DATASETS = ["dev", "test", "holdout"] as const;
 export const STRATEGY_NAMES = [
   "TrendD1",
@@ -35,6 +40,8 @@ export const STRATEGY_NAMES = [
 /** An instrument name as MT5 writes it, e.g. EURUSD or XAUUSD. The set comes from the config (TZ 17). */
 export type SymbolName = string;
 export type Timeframe = (typeof TIMEFRAMES)[number];
+export type ChartOnlyTimeframe = (typeof CHART_ONLY_TIMEFRAMES)[number];
+export type AnyTimeframe = Timeframe | ChartOnlyTimeframe;
 export type Dataset = (typeof DATASETS)[number];
 export type StrategyName = (typeof STRATEGY_NAMES)[number];
 

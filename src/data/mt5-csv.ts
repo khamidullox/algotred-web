@@ -1,4 +1,4 @@
-import type { Timeframe } from "../config";
+import type { AnyTimeframe } from "../config";
 import type { ServerTimeConverter } from "./time";
 import { TIMEFRAME_MINUTES, type Bar } from "./types";
 
@@ -55,7 +55,7 @@ export function decodeMt5File(bytes: Uint8Array): string {
  */
 export function parseMt5Csv(
   text: string,
-  options: { timeframe: Timeframe; toUtc: ServerTimeConverter },
+  options: { timeframe: AnyTimeframe; toUtc: ServerTimeConverter },
 ): ParsedCsv {
   const { timeframe, toUtc } = options;
   const lines = text.split(/\r?\n/);

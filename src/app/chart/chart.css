@@ -225,3 +225,7 @@ main:has(.terminal) {
   font-size: 0.82rem;
   color: var(--muted);
 }
+
+.nowrap {
+  white-space: nowrap;
+}

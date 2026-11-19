@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ChartBar } from "../src/app/_lib/api-types";
-import { aggregateH4, barAtOrBefore, channel, lanes, swingLevels, withGaps } from "../src/app/_lib/chart-math";
+import { aggregateH4, barAtOrBefore, channel, exitBarIndex, lanes, swingLevels, withGaps } from "../src/app/_lib/chart-math";
 
 const HOUR = 3600;
 /** Server time two hours ahead of UTC, as in Athens winter time. */
@@ -92,6 +92,36 @@ describe("lanes", () => {
 
   it("clips segments to the loaded bars", () => {
     expect(lanes([{ from: -3, to: 1, value: 7 }], 3)).toEqual([[7, 7, null]]);
+  });
+
+  it("draws a sloped segment from entry to exit, also when it starts before the loaded bars", () => {
+    expect(lanes([{ from: 1, to: 3, value: 2, valueTo: 8 }], 5)).toEqual([[null, 2, 5, 8, null]]);
+    expect(lanes([{ from: -1, to: 1, value: 0, valueTo: 4 }], 3)).toEqual([[2, 4, null]]);
+  });
+});
+
+describe("exitBarIndex", () => {
+  const MINUTE = 60;
+  // Minute bars from the open of the M15 bar in which the engine closed the trade.
+  const minutes = (lows: number[], highs: number[]): ChartBar[] =>
+    lows.map((low, i) => ({ ...bar(0, highs[i] as number, low), time: 1_000_000 + i * MINUTE, serverTime: 1_007_200 + i * MINUTE, spreadPoints: 10 }));
+  const trade = { direction: "BUY" as const, exitTime: 1_000_000, entryPrice: 1.1, stopLoss: 1.095, takeProfit: 1.11 };
+
+  it("moves a buy's stop to the first minute whose low reaches it", () => {
+    const bars = minutes([1.098, 1.097, 1.0949, 1.09], [1.1, 1.1, 1.1, 1.1]);
+    expect(exitBarIndex(bars, 0, { ...trade, exitReason: "stop" }, 5)).toBe(2);
+  });
+
+  it("checks a sell's exit on the ask: Bid plus the spread", () => {
+    const bars = minutes([1.1, 1.1, 1.1], [1.0947, 1.0949, 1.096]);
+    // Sell stop at 1.095: the ask is 1.0949 + 10 points = 1.0950 on the second minute.
+    expect(exitBarIndex(bars, 0, { ...trade, direction: "SELL", stopLoss: 1.095, exitReason: "stop" }, 5)).toBe(1);
+  });
+
+  it("leaves rule exits and exits it cannot find where the engine put them", () => {
+    const bars = minutes([1.098, 1.097], [1.1, 1.1]);
+    expect(exitBarIndex(bars, 0, { ...trade, exitReason: "strategy" }, 5)).toBe(0);
+    expect(exitBarIndex(bars, 0, { ...trade, exitReason: "take" }, 5)).toBe(0);
   });
 });
 

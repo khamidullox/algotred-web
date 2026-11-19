@@ -1,4 +1,5 @@
-import { ConfigError, loadConfig, symbolNames, type Config, type Timeframe } from "../../config";
+import { CHART_ONLY_TIMEFRAMES, ConfigError, loadConfig, symbolNames, type AnyTimeframe, type Config } from "../../config";
+import { findExport } from "../_lib/big-series";
 import { listSeriesFiles } from "../_lib/data-store";
 import { ChartWorkspace } from "./chart-workspace";
 import "./chart.css";
@@ -19,10 +20,16 @@ export default function ChartPage() {
       </>
     );
   }
-  const timeframes: Record<string, Timeframe[]> = {};
+  const timeframes: Record<string, AnyTimeframe[]> = {};
   for (const file of listSeriesFiles(config)) {
     if (!file.present) continue;
     (timeframes[file.symbol] ??= []).push(file.timeframe);
+  }
+  // M1 and M5 are optional and only for the chart: exports with any MT5 name count.
+  for (const symbol of symbolNames(config)) {
+    for (const timeframe of CHART_ONLY_TIMEFRAMES) {
+      if (findExport(config.dataDir, symbol, timeframe) !== null) (timeframes[symbol] ??= []).push(timeframe);
+    }
   }
   const symbols = symbolNames(config).filter((symbol) => (timeframes[symbol] ?? []).length > 0);
 

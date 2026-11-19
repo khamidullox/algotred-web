@@ -1,7 +1,7 @@
 // Plain-language descriptions of every strategy we have run, for the chart
 // page. Facts come from TZ-backtest-engine.md; results are the recorded ones.
 
-export type ViewTimeframe = "M15" | "H1" | "H4" | "D1";
+export type ViewTimeframe = "M1" | "M5" | "M15" | "H1" | "H4" | "D1";
 export type LevelOverlay = "channel" | "swings" | "none";
 
 export interface StrategyGuide {

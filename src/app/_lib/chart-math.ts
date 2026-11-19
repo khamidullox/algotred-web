@@ -154,11 +154,54 @@ export function barAtOrBefore(bars: readonly ChartBar[], time: number): number {
   return found;
 }
 
+export interface ExitFacts {
+  readonly direction: "BUY" | "SELL";
+  readonly exitReason: "stop" | "take" | "strategy" | "end-of-data" | "breakeven";
+  /** UTC seconds: the open of the execution bar (M15 or H1) in which the engine closed the trade. */
+  readonly exitTime: number;
+  readonly entryPrice: number;
+  readonly stopLoss: number;
+  readonly takeProfit: number | null;
+}
+
+/**
+ * The engine records a stop or take exit at the open of the M15 or H1 bar in
+ * which it happened. On a finer chart (M1, M5) the exit is moved to the first
+ * bar inside that hour whose prices reach the level: Bid for a buy, Bid plus
+ * the bar's spread for a sell, as the engine closes them. Exits by rule or at
+ * the end of the data happen at a bar's open and stay where they are.
+ */
+export function exitBarIndex(bars: readonly ChartBar[], roughIndex: number, trade: ExitFacts, digits: number): number {
+  if (roughIndex < 0 || trade.exitReason === "strategy" || trade.exitReason === "end-of-data") return roughIndex;
+  const level =
+    trade.exitReason === "take" ? trade.takeProfit : trade.exitReason === "stop" ? trade.stopLoss : trade.entryPrice;
+  if (level === null) return roughIndex;
+  const point = 10 ** -digits;
+  const buy = trade.direction === "BUY";
+  const againstPosition = trade.exitReason !== "take";
+  for (let index = roughIndex; index < bars.length; index++) {
+    const bar = bars[index] as ChartBar;
+    if (bar.time >= trade.exitTime + 3600) break;
+    const spread = bar.spreadPoints * point;
+    const reached = buy
+      ? againstPosition
+        ? bar.low <= level
+        : bar.high >= level
+      : againstPosition
+        ? bar.high + spread >= level
+        : bar.low + spread <= level;
+    if (reached) return index;
+  }
+  return roughIndex;
+}
+
 export interface Segment {
   /** Bar indices, inclusive. */
   readonly from: number;
   readonly to: number;
   readonly value: number;
+  /** Value at `to` for a sloped segment (entry to exit of a trade); flat when missing. */
+  readonly valueTo?: number;
 }
 
 /**
@@ -180,7 +223,11 @@ export function lanes(segments: readonly Segment[], barCount: number): (number |
       row = { lastTo: -2, values: new Array<number | null>(barCount).fill(null) };
       rows.push(row);
     }
-    for (let index = from; index <= to; index++) row.values[index] = segment.value;
+    const end = segment.valueTo ?? segment.value;
+    const span = segment.to - segment.from;
+    for (let index = from; index <= to; index++) {
+      row.values[index] = span === 0 ? segment.value : segment.value + ((end - segment.value) * (index - segment.from)) / span;
+    }
     row.lastTo = to;
   }
   return rows.map((row) => row.values);
