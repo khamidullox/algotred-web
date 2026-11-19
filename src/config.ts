@@ -35,6 +35,8 @@ export const STRATEGY_NAMES = [
   // Stage 3 (TZ 17.7, 17.8): two ideas from the customer's Telegram channels.
   "ThreeTouchTrendD1",
   "SeriesBreakH4",
+  // Stage 3 (TZ 17.10): gold range breakout with a limit order, from the course lessons.
+  "GoldFlatLimitM15",
 ] as const;
 
 /** An instrument name as MT5 writes it, e.g. EURUSD or XAUUSD. The set comes from the config (TZ 17). */

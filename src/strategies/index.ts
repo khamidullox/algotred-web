@@ -7,6 +7,7 @@ import {
   breakoutRetestV2MinStop,
 } from "./breakout-retest-v1";
 import { failedBreakoutV1 } from "./failed-breakout-v1";
+import { goldFlatLimitM15 } from "./gold-flat-limit-m15";
 import { rectangleV1 } from "./rectangle-v1";
 import { rsi2ReversionD1 } from "./rsi2-reversion-d1";
 import { strongLevelD1 } from "./strong-level-d1";
@@ -31,4 +32,5 @@ export const STRATEGIES: Readonly<Record<StrategyName, Strategy>> = {
   MidMonthIndexControl: midMonthIndexControl,
   ThreeTouchTrendD1: threeTouchTrendD1,
   SeriesBreakH4: seriesBreakH4,
+  GoldFlatLimitM15: goldFlatLimitM15,
 };
