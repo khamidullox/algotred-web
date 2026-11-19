@@ -37,6 +37,11 @@ export const TRADE_CSV_COLUMNS = [
   "entry_utc",
   "exit_utc",
   "reason",
+  // Partial close (TZ 17.10); empty for trades without one. Last, so older
+  // readers of the first columns keep working.
+  "partial_server",
+  "partial_price",
+  "partial_lots",
 ] as const;
 
 function csvCell(value: string | number): string {
@@ -91,6 +96,9 @@ export function tradeRow(
     utc(trade.entryTime),
     utc(trade.exitTime),
     trade.reason,
+    trade.partialTime === null || trade.partialTime === undefined ? "" : server(trade.partialTime),
+    price(trade.partialPrice ?? null),
+    trade.partialLots === null || trade.partialLots === undefined ? "" : trade.partialLots.toFixed(2),
   ];
 }
 

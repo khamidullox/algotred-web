@@ -48,6 +48,47 @@ export interface MarketContext {
   justClosed(timeframe: Timeframe): boolean;
   /** The open position on this symbol, if any. */
   readonly position: OpenPosition | null;
+  /** The resting limit order on this symbol, if any (TZ 17.10). */
+  readonly order: RestingOrder | null;
+}
+
+/** A limit order waiting for its price (TZ 17.10). */
+export interface RestingOrder {
+  readonly direction: Direction;
+  /** The limit price: an Ask for a buy, a Bid for a sell. */
+  readonly price: number;
+  /** Close time of the bar on which the order was placed, UTC ms. */
+  readonly signalTime: number;
+}
+
+/**
+ * A resting limit entry (TZ 17.10). It works from the bar after the signal:
+ * a buy fills when the Ask reaches the price (Bid low plus the bar's spread),
+ * a sell when the Bid high does; a bar that opens beyond the price fills at
+ * the open. No slippage. In the bar of the fill only the stop is checked.
+ */
+export interface LimitSpec {
+  readonly price: number;
+  /**
+   * The order is cancelled when the Bid reaches this level before the fill
+   * (above the price for a buy, below for a sell). A bar that reaches both
+   * this level and the price counts as cancelled: the order inside it is unknown.
+   */
+  readonly cancelAt?: number;
+  /** The order is cancelled at the first bar that opens at or after this time (UTC ms). */
+  readonly expiresAt?: number;
+}
+
+/**
+ * Part of the position closed at a price (TZ 17.10). The rest keeps the stop
+ * and the take; with `breakeven` its stop moves to the entry price from the
+ * next bar. A bar that reaches the stop and this price counts as a stop.
+ */
+export interface PartialSpec {
+  readonly price: number;
+  /** Share of the lots closed, rounded down to the lot step; nothing is closed when that is 0. */
+  readonly fraction: number;
+  readonly breakeven: boolean;
 }
 
 /** An absolute price, or a distance from the actual entry price. */
@@ -102,6 +143,20 @@ export interface Signal {
    * waiting. Without it the order fills at the next open.
    */
   readonly notBefore?: number;
+  /**
+   * A resting limit order instead of a market fill at the next open
+   * (TZ 17.10). A new limit signal replaces a resting one. Not combined with
+   * `reverse`, `notBefore` or `expectedEntryTime`.
+   */
+  readonly limit?: LimitSpec;
+  /** Close part of the position at a price on the way to the take (TZ 17.10). */
+  readonly partial?: PartialSpec;
+  readonly reason: string;
+}
+
+/** Withdraw the resting limit order. Ignored when there is none. */
+export interface CancelSignal {
+  readonly kind: "cancel";
   readonly reason: string;
 }
 
@@ -113,7 +168,7 @@ export interface ExitSignal {
   readonly notBefore?: number;
 }
 
-export type StrategyAction = Signal | ExitSignal;
+export type StrategyAction = Signal | ExitSignal | CancelSignal;
 
 export type ParamValue = number | string | boolean;
 
@@ -166,6 +221,10 @@ export interface Trade {
   readonly stopAtExit: number;
   /** Close time of the bar after which the stop was moved to breakeven, or null. */
   readonly breakevenTime: number | null;
+  /** Partial close (TZ 17.10): open time of its bar, fill and lots; null when there was none. */
+  readonly partialTime: number | null;
+  readonly partialPrice: number | null;
+  readonly partialLots: number | null;
   /** Server-time rollovers the position was held through (Saturday and Sunday nights do not count). */
   readonly nights: number;
   /**
@@ -202,7 +261,9 @@ export type SkipReason =
   | "invalid-levels"
   | "stop-too-far"
   | "stop-too-close"
-  | "lot-too-small";
+  | "lot-too-small"
+  | "order-cancelled"
+  | "order-expired";
 
 export interface SkippedSignal {
   readonly symbol: SymbolName;

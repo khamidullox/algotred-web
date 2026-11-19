@@ -73,6 +73,41 @@ export function fillMarketExit(
   };
 }
 
+/**
+ * A resting limit order inside `bar` (TZ 17.10), or null when the price was
+ * not reached. A buy limit is an Ask price: it fills when `low + spread`
+ * reaches it, at the open Ask when the bar opens below it. A sell limit is a
+ * Bid price: it fills when `high` reaches it, at the open when the bar opens
+ * above it. Limit fills have no slippage.
+ */
+export function fillLimit(
+  spec: SymbolSpec,
+  direction: Direction,
+  bar: Bar,
+  price: number,
+  costs: CostSettings,
+): Fill | null {
+  if (direction === "BUY") {
+    const spread = spreadOf(spec, bar, costs);
+    const ask = (bid: number): number => roundPrice(spec, bid + spread);
+    if (ask(bar.open) <= price) {
+      return { raw: bar.open, price: ask(bar.open), spread, slippage: 0 };
+    }
+    if (ask(bar.low) <= price) {
+      return { raw: roundPrice(spec, price - spread), price, spread, slippage: 0 };
+    }
+    return null;
+  }
+  if (bar.open >= price) return { raw: bar.open, price: bar.open, spread: 0, slippage: 0 };
+  if (bar.high >= price) return { raw: price, price, spread: 0, slippage: 0 };
+  return null;
+}
+
+/** True when the Bid of `bar` reaches the cancel level of a resting order: above it for a buy, below for a sell. */
+export function limitCancelReached(direction: Direction, bar: Bar, cancelAt: number): boolean {
+  return direction === "BUY" ? bar.high >= cancelAt : bar.low <= cancelAt;
+}
+
 export interface StopHit {
   readonly reason: "stop" | "take";
   readonly fill: Fill;
