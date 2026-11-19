@@ -37,6 +37,9 @@ export const STRATEGY_NAMES = [
   "SeriesBreakH4",
   // Stage 3 (TZ 17.10): gold range breakout with a limit order, from the course lessons.
   "GoldFlatLimitM15",
+  // Stage 3 (TZ 17.12): Connors RSI(2) on the US indices, with its control.
+  "Rsi2ReversionIndexD1",
+  "Rsi2IndexControl",
 ] as const;
 
 /** An instrument name as MT5 writes it, e.g. EURUSD or XAUUSD. The set comes from the config (TZ 17). */
