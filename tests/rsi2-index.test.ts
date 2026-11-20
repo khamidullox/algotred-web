@@ -56,7 +56,8 @@ describe("Rsi2ReversionIndexD1", () => {
       expect(index.trades).toHaveLength(1);
       expect(withoutName(index)).toEqual(withoutName(run(rsi2ReversionD1, tail, sign)));
     }
-  });
+    // Four runs over a long daily history: about 4 s on a free machine, over the default 5 s on a busy one.
+  }, 30_000);
 
   it("keeps the frozen numbers of TZ 17.4 and trades the three US indices", () => {
     expect(rsi2ReversionIndexD1.params).toEqual(rsi2ReversionD1.params);
