@@ -165,3 +165,35 @@ describe("Rsi2IndexH1Control", () => {
     expect(rsi2IndexControl.params).not.toHaveProperty("holdBars");
   });
 });
+
+describe("a close exactly on a moving average", () => {
+  /** The dip, then a candle that closes on SMA(5) to the point, then one beyond it. */
+  const TIE_ON_EXIT = [0.205, 0.197, 0.20475, 0.21];
+  /** One more candle of the climb, then a fall that closes on SMA(200) to the point. */
+  const TIE_ON_TREND = [0.21, 0.111];
+
+  it("keeps the position: the exit needs a close beyond SMA(5), not on it", () => {
+    for (const sign of [1, -1] as const) {
+      const { trades, hourStart } = hourly(rsi2ReversionIndexH1, TIE_ON_EXIT, { sign });
+      // Candle 212 closes on SMA(5); candle 213 closes beyond it.
+      expect(trades.map((trade) => [trade.entryTime, trade.exitTime, trade.exitReason])).toEqual([
+        [hourStart(212), hourStart(214), "strategy"],
+      ]);
+    }
+  });
+
+  it("gives no entry: the trend needs a close beyond SMA(200), not on it", () => {
+    for (const sign of [1, -1] as const) {
+      const { trades, hourStart } = hourly(rsi2ReversionIndexH1, TIE_ON_TREND, { sign });
+      // Candle 211 closes on SMA(200) with RSI(2) at the extreme; candle 212 is beyond it.
+      expect(trades.map((trade) => trade.entryTime)).toEqual([hourStart(213)]);
+    }
+  });
+
+  it("is no trend for the control either", () => {
+    // Flat closes: RSI(2) is 50 and every close equals SMA(200).
+    const start = server("2024-01-08T00:00");
+    const bars = Array.from({ length: 230 }, (_, hour) => candle(start + hour * HOUR, P, P));
+    expect(backtest(rsi2IndexH1Control, bars, start, start + bars.length * HOUR).trades).toEqual([]);
+  });
+});

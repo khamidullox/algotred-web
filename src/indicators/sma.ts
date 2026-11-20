@@ -1,16 +1,29 @@
 import type { Bar } from "../data/types";
 import type { ClosedBars } from "../engine/types";
 
+/**
+ * Prices are summed as whole units of 1e-8, the finest point the config
+ * allows (`digits` up to 8). The sum of such integers is exact, so the mean
+ * is the double nearest to the true mean: a close that equals the mean on
+ * paper equals it here as well, and `close > mean` is never decided by
+ * rounding noise.
+ */
+const UNITS_PER_PRICE = 1e8;
+
 /** Simple moving average; NaN for the first `period - 1` values. */
 export function sma(values: readonly number[], period: number): number[] {
   const series = new Sma(period);
   return values.map((value) => series.push(value));
 }
 
-/** Incremental simple moving average of the close, aligned with closed bars. */
+/**
+ * Incremental simple moving average of the close, aligned with closed bars.
+ * Takes prices: finite numbers with at most 8 decimal places.
+ */
 export class Sma {
   readonly values: number[] = [];
   readonly #window: number[] = [];
+  /** Sum of the window in units of 1e-8, always a whole number. */
   #sum = 0;
 
   constructor(readonly period: number) {
@@ -20,18 +33,23 @@ export class Sma {
   }
 
   push(value: number): number {
-    this.#window.push(value);
-    this.#sum += value;
-    if (this.#window.length > this.period) {
+    const units = Math.round(value * UNITS_PER_PRICE);
+    if (this.#window.length === this.period) {
       this.#sum -= this.#window.shift() as number;
     }
-    // Summing the window again avoids the drift of a running sum over
-    // hundreds of thousands of bars.
-    if (this.values.length % 1024 === 0) {
-      this.#sum = this.#window.reduce((total, item) => total + item, 0);
+    this.#window.push(units);
+    this.#sum += units;
+    // Whole numbers add exactly only up to 2^53.
+    if (!Number.isSafeInteger(units) || !Number.isSafeInteger(this.#sum)) {
+      throw new RangeError(
+        `SMA(${this.period}) cannot sum the price ${value} exactly: it is not finite or too large`,
+      );
     }
+    // One division by a whole number: the result is rounded once.
     const result =
-      this.#window.length === this.period ? this.#sum / this.period : Number.NaN;
+      this.#window.length === this.period
+        ? this.#sum / (this.period * UNITS_PER_PRICE)
+        : Number.NaN;
     this.values.push(result);
     return result;
   }
