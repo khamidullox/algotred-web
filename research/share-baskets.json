@@ -1,0 +1,5 @@
+{
+  "BROKER": ["AAPL", "AMZN", "GOOG", "MSFT", "NVDA", "TSLA", "AMD", "META", "BABA", "NFLX", "INTC", "NKE", "KO"],
+  "ETFS": ["SPY", "QQQ", "IWM", "DIA", "XLB", "XLE", "XLF", "XLI", "XLK", "XLP", "XLU", "XLV", "XLY"],
+  "DOW2015": ["MMM", "AXP", "T", "BA", "CAT", "CVX", "CSCO", "KO", "DD", "XOM", "GE", "GS", "HD", "INTC", "IBM", "JNJ", "JPM", "MCD", "MRK", "MSFT", "NKE", "PFE", "PG", "TRV", "UNH", "RTX", "VZ", "V", "WMT", "DIS"]
+}

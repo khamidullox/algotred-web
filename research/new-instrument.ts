@@ -3,7 +3,7 @@
 // a search. The instruments are not in config/default.json, where their
 // history would move the start of `dev` for everything else; their files live
 // in folders of their own and their costs are set here.
-// Usage: npx tsx research/new-instrument.ts ndx|ndx-broker|ndx2|calibrate|world [file for the trades of the strategy]
+// Usage: npx tsx research/new-instrument.ts ndx|ndx-broker|ndx2|calibrate|world|shares-broker|shares-etfs|shares-dow [file for the trades of the strategy]
 import { readFileSync, writeFileSync } from "node:fs";
 import { loadConfig, type Config, type SymbolConfig } from "../src/config";
 import { readSeriesInput } from "../src/data/load";
@@ -14,6 +14,7 @@ import type { BacktestResult, Strategy, Trade } from "../src/engine/types";
 import { rsi2IndexControl } from "../src/strategies/rsi2-index-control";
 import { rsi2ReversionIndexD1 } from "../src/strategies/rsi2-reversion-d1";
 import { header, line, metricsOf } from "./lib";
+import baskets from "./share-baskets.json";
 
 interface Instrument {
   readonly symbol: string;
@@ -116,6 +117,36 @@ function exchangeIndex(symbol: string): Instrument {
   };
 }
 
+/**
+ * A US share or fund from Yahoo Finance (TZ 17.22). Its CFD trades in exchange hours only, so the next
+ * daily open is the real next price. The costs of a round trip follow the price and sit in the spread
+ * column of the file (0.078% in all: spread, commission, slippage); financing as for the indices,
+ * 6.4% a year long. One lot is one share.
+ */
+function exchangeShare(ticker: string): Instrument {
+  const summary = JSON.parse(readFileSync(`${YAHOO_DIR}/summary-stocks.json`, "utf8")) as { ticker: string; lastClose: number }[];
+  const own = summary.find((item) => item.ticker === ticker);
+  if (own === undefined) throw new Error(`${ticker} is not in ${YAHOO_DIR}/summary-stocks.json: run research/fetch-yahoo.mjs stocks`);
+  const pip = 0.001;
+  return {
+    symbol: `ST${ticker}`,
+    dataDir: YAHOO_DIR,
+    config: {
+      digits: 4,
+      contractSize: 1,
+      usdSide: "quote",
+      commissionPerLotRoundTrip: 0,
+      tripleSwapDay: "friday",
+      timeZoneCheck: false,
+      swapLongPips: -(0.00017767 * own.lastClose) / pip,
+      swapShortPips: -(0.00004832 * own.lastClose) / pip,
+      swapReferencePrice: own.lastClose,
+      minSpreadPoints: 0,
+      slippagePoints: 0,
+    },
+  };
+}
+
 /** The server date the dev dataset starts on: the exchange files go back to 2012, so the indicators are warm by then. */
 const FROM = "2015-02-02";
 
@@ -176,6 +207,18 @@ function report(label: string, instruments: readonly Instrument[], from: string 
       const result = runBacktest({ data, strategy: own, span, config, options: { costMultiplier } });
       console.log(line(`${strategy.name}${costMultiplier === 1 ? "" : " | costs x2"}`, metricsOf(result)));
       if (costMultiplier === 1 && strategy === rsi2ReversionIndexD1 && process.argv[3] !== undefined) writeFileSync(process.argv[3], JSON.stringify(result.trades));
+      if (costMultiplier === 1 && instruments.length > 4) {
+        // How many instruments made money, and how many positions were open at once.
+        const bySymbol = new Map<string, number[]>();
+        for (const trade of result.trades) bySymbol.set(trade.symbol, [...(bySymbol.get(trade.symbol) ?? []), trade.rMultiple]);
+        const positive = [...bySymbol.values()].filter((list) => list.reduce((a, b) => a + b, 0) > 0).length;
+        const moments = result.trades.flatMap((trade) => [[trade.entryTime, 1], [trade.exitTime, -1]] as [number, number][]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+        let open = 0, most = 0;
+        for (const [, change] of moments) { open += change; most = Math.max(most, open); }
+        const daysWithEntry = new Map<number, number>();
+        for (const trade of result.trades) daysWithEntry.set(trade.entryTime, (daysWithEntry.get(trade.entryTime) ?? 0) + 1);
+        console.log(`  instruments in profit ${positive} of ${instruments.length} (traded ${bySymbol.size}); most positions open at once ${most}; most entries on one day ${Math.max(0, ...daysWithEntry.values())}`);
+      }
       if (costMultiplier === 1) {
         const buys = result.trades.filter((trade) => trade.direction === "BUY");
         const sells = result.trades.filter((trade) => trade.direction === "SELL");
@@ -199,6 +242,12 @@ if (basket === "ndx") {
   report("US indices from the exchange (calibration of the proxy)", ["SPXCASH", "DJICASH", "RUTCASH", "NDXCASH"].map(exchangeIndex), FROM);
 } else if (basket === "world") {
   report("Indices outside the US, from the exchange", ["GER40", "UK100", "JP225", "FRA40", "EU50", "AUS200", "HK50"].map(exchangeIndex), FROM);
+} else if (basket === "shares-broker") {
+  report("US shares the broker lists", baskets.BROKER.map(exchangeShare), FROM);
+} else if (basket === "shares-etfs") {
+  report("US index and sector funds", baskets.ETFS.map(exchangeShare), FROM);
+} else if (basket === "shares-dow") {
+  report("The Dow Jones thirty of February 2015", baskets.DOW2015.map(exchangeShare), FROM);
 } else {
-  throw new Error("usage: npx tsx research/new-instrument.ts ndx|ndx-broker|ndx2|calibrate|world");
+  throw new Error("usage: npx tsx research/new-instrument.ts ndx|ndx-broker|ndx2|calibrate|world|shares-broker|shares-etfs|shares-dow");
 }
