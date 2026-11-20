@@ -45,6 +45,8 @@ export const STRATEGY_NAMES = [
   "Rsi2IndexH1Control",
   // Stage 3 (TZ 17.15): double bottom and double top on H1 with a stop order, from the Telegram lessons.
   "DoubleBottomH1",
+  // Stage 3 (TZ 17.16): closing of the weekend gap, from a market review of the Telegram export.
+  "MondayGapM15",
 ] as const;
 
 /** An instrument name as MT5 writes it, e.g. EURUSD or XAUUSD. The set comes from the config (TZ 17). */

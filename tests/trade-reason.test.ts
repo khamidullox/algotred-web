@@ -72,6 +72,18 @@ describe("parseReason", () => {
     expect(top.moments.map((moment) => moment.label)).toEqual(["вершина", "вершина", "ордер"]);
   });
 
+  it("reads the Friday close and the open of the week of MondayGapM15", () => {
+    const marks = parseReason(
+      "L 1.20000 (close 2024-05-10 23:45); открытие недели 2024-05-13 00:00; через час 1.19700; гэп 0.00300 = 0.30 ATR(14) D1 0.01000; стоп 1.19400; половина 1.19850; срок 2024-05-13 23:00",
+      ZONE,
+    );
+    expect(marks.level).toBe(1.2);
+    // Athens is UTC+3 in May.
+    expect(marks.levelFrom).toBe(utc("2024-05-10T20:45:00Z"));
+    expect(marks.moments).toEqual([{ label: "открытие недели", time: utc("2024-05-12T21:00:00Z") }]);
+    expect(marks.trendLine).toBeNull();
+  });
+
   it("reads moments as whole words only", () => {
     const marks = parseReason("L 1.10000; одно 2024-05-07 06:00; середина 2024-05-07 07:00", ZONE);
     expect(marks.moments).toEqual([]);
