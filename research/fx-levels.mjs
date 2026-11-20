@@ -22,9 +22,10 @@
 // (mode touch); C a market order after the touch in the direction of the break
 // (follow); D the same by the hour, the age and the roundness of the level, and
 // the extremes of the day and the week before (where); E hour by hour (ny);
-// F the day of the Fed decision, one number a day (fed).
+// F the day of the Fed decision, one number a day (fed); G the move in pips
+// against the costs, pair by pair (pips).
 //
-// Usage: node research/fx-levels.mjs [touch|follow|where|ny|fed|all]
+// Usage: node research/fx-levels.mjs [touch|follow|where|ny|fed|pips|all]
 import { readFileSync } from "node:fs";
 
 const config = JSON.parse(readFileSync("config/default.json", "utf8"));
@@ -439,4 +440,22 @@ if (mode === "all" || mode === "fed") {
   }
   rowFollow("after the first bar, all pairs", plain, 1);
   console.log("      " + byDay(plain));
+}
+
+// ------------------------------------------------------------------ G. the move in pips, pair by pair: the costs it would take to break even
+if (mode === "all" || mode === "pips") {
+  console.log("\n== G. The trade of C in pips (stop and target 0.5 ATR): the move before costs against the costs of the config, pair by pair ==");
+  for (const tfName of ["H1", "H4", "D1"]) {
+    const list = followAll(swingEvents(tfName), 0.5, 1);
+    console.log("\n-- swings of " + tfName + " --");
+    console.log(pad("", 10) + " trades  a month   move, pips (t by weeks)   costs, pips   2015-18 / 2019-21, pips");
+    const line = (label, ts) => {
+      const S = (t) => 0.5 * t.m.atrOfDay.get(t.date) / t.m.pip; // the stop in pips
+      const pips = ts.map((t) => ({ date: t.date, r: t.r * S(t) }));
+      const a = pips.filter((t) => t.date < SPLIT), z = pips.filter((t) => t.date >= SPLIT);
+      console.log(pad(label, 10) + lpad(ts.length, 7) + lpad((ts.length / months).toFixed(1), 8) + "   " + f(mean(pips.map((t) => t.r)), 2) + " (" + f(tByWeeks(pips), 1) + ")" + "            " + mean(ts.map((t) => t.cost * S(t))).toFixed(2) + "          " + f(mean(a.map((t) => t.r)), 2) + " / " + f(mean(z.map((t) => t.r)), 2));
+    };
+    for (const p of PAIRS) line(p, list.filter((t) => t.symbol === p));
+    line("all", list);
+  }
 }
