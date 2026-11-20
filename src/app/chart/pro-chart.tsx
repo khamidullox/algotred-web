@@ -59,6 +59,16 @@ function useColorScheme(): string {
   return scheme;
 }
 
+/** Why an unfilled order went, in a few words: the engine's own sentence is too long for a chart label. */
+function shortEnd(detail: string): string {
+  if (/^цена дошла до \d/.test(detail)) return "уровень отмены";
+  if (detail.includes("не работал")) return "ночь или новость";
+  if (detail.startsWith("не исполнен")) return "срок вышел";
+  if (detail.startsWith("заменён")) return "заменён новым";
+  if (detail.startsWith("набор закончился")) return "конец данных";
+  return detail;
+}
+
 const EXIT_LABELS: Record<ChartTrade["exitReason"], string> = {
   stop: "стоп",
   take: "тейк",
@@ -396,7 +406,7 @@ export function ProChart(props: {
             price: order.price,
             shape: "square",
             color: MOMENT_COLOR,
-            text: `${order.direction === "BUY" ? "buy" : "sell"} ${order.kind} ${price(order.price)} снят: ${order.detail}`,
+            text: `${order.direction === "BUY" ? "buy" : "sell"} ${order.kind} снят: ${shortEnd(order.detail)}`,
           });
         }
       }
