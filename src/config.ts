@@ -43,6 +43,8 @@ export const STRATEGY_NAMES = [
   // Stage 3 (TZ 17.13): the same RSI(2) rules on hourly candles, with its control.
   "Rsi2ReversionIndexH1",
   "Rsi2IndexH1Control",
+  // Stage 3 (TZ 17.15): double bottom and double top on H1 with a stop order, from the Telegram lessons.
+  "DoubleBottomH1",
 ] as const;
 
 /** An instrument name as MT5 writes it, e.g. EURUSD or XAUUSD. The set comes from the config (TZ 17). */

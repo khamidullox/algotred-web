@@ -220,7 +220,8 @@ describe("sell stop", () => {
   });
 
   it("stops at the level when the Ask reaches the stop in the fill bar", () => {
-    const trade = only(run(patched({ "2024-01-08T10:30": { low: 1.0985, high: 1.1015 } }), { [PLACED]: stopSell }));
+    // Bid high 1.1005 plus a 6-pip spread: the Ask reaches 1.1010, the Bid does not.
+    const trade = only(run(patched({ "2024-01-08T10:30": { low: 1.0985, high: 1.1005, spreadPoints: 60 } }), { [PLACED]: stopSell }));
     expect([trade.entryPrice, trade.exitReason, trade.exitPrice]).toEqual([1.099, "stop", 1.101]);
   });
 });

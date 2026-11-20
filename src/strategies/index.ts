@@ -6,6 +6,7 @@ import {
   breakoutRetestV2Breakeven,
   breakoutRetestV2MinStop,
 } from "./breakout-retest-v1";
+import { doubleBottomH1 } from "./double-bottom-h1";
 import { failedBreakoutV1 } from "./failed-breakout-v1";
 import { goldFlatLimitM15 } from "./gold-flat-limit-m15";
 import { rectangleV1 } from "./rectangle-v1";
@@ -38,4 +39,5 @@ export const STRATEGIES: Readonly<Record<StrategyName, Strategy>> = {
   Rsi2IndexControl: rsi2IndexControl,
   Rsi2ReversionIndexH1: rsi2ReversionIndexH1,
   Rsi2IndexH1Control: rsi2IndexH1Control,
+  DoubleBottomH1: doubleBottomH1,
 };
