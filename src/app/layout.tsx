@@ -21,6 +21,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <Link href="/data">Данные</Link>
             <Link href="/backtest">Бэктест</Link>
             <Link href="/reports">Отчёты</Link>
+            <Link href="/signals">Сигналы</Link>
           </nav>
         </header>
         <main>{children}</main>
