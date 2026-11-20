@@ -9,6 +9,7 @@ import {
 import { doubleBottomH1 } from "./double-bottom-h1";
 import { failedBreakoutV1 } from "./failed-breakout-v1";
 import { goldFlatLimitM15 } from "./gold-flat-limit-m15";
+import { ibsDipIndexD1, ibsIndexControl } from "./ibs-dip-index-d1";
 import { mondayGapM15 } from "./monday-gap-m15";
 import { rectangleV1 } from "./rectangle-v1";
 import { rsi2IndexControl, rsi2IndexH1Control } from "./rsi2-index-control";
@@ -42,4 +43,6 @@ export const STRATEGIES: Readonly<Record<StrategyName, Strategy>> = {
   Rsi2IndexH1Control: rsi2IndexH1Control,
   DoubleBottomH1: doubleBottomH1,
   MondayGapM15: mondayGapM15,
+  IbsDipIndexD1: ibsDipIndexD1,
+  IbsIndexControl: ibsIndexControl,
 };

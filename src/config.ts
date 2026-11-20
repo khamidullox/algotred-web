@@ -47,6 +47,9 @@ export const STRATEGY_NAMES = [
   "DoubleBottomH1",
   // Stage 3 (TZ 17.16): closing of the weekend gap, from a market review of the Telegram export.
   "MondayGapM15",
+  // Stage 3 (TZ 17.17): the dip-buying rule found by the search on dev, and its control.
+  "IbsDipIndexD1",
+  "IbsIndexControl",
 ] as const;
 
 /** An instrument name as MT5 writes it, e.g. EURUSD or XAUUSD. The set comes from the config (TZ 17). */
