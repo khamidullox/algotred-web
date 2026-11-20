@@ -13,8 +13,8 @@ const SKIP_LABELS: Readonly<Record<SkipReason, string>> = {
   "stop-too-far": "стоп слишком далеко",
   "stop-too-close": "стоп слишком близко",
   "lot-too-small": "лот меньше 0.01",
-  "order-cancelled": "лимитный ордер снят",
-  "order-expired": "лимитный ордер истёк",
+  "order-cancelled": "отложенный ордер снят",
+  "order-expired": "отложенный ордер истёк",
 };
 
 const STATUS_LABELS: Readonly<Record<CriterionStatus, string>> = {

@@ -49,7 +49,7 @@ export interface MarketContext {
   justClosed(timeframe: Timeframe): boolean;
   /** The open position on this symbol, if any. */
   readonly position: OpenPosition | null;
-  /** The resting limit order on this symbol, if any (TZ 17.10). */
+  /** The resting limit or stop order on this symbol, if any (TZ 17.10, 17.15). */
   readonly order: RestingOrder | null;
   /**
    * Economic calendar events in [from, to), UTC ms, oldest first. The
@@ -60,10 +60,11 @@ export interface MarketContext {
   news(from: number, to: number, filter?: NewsFilter): readonly NewsEvent[];
 }
 
-/** A limit order waiting for its price (TZ 17.10). */
+/** A limit order (TZ 17.10) or a stop order (TZ 17.15) waiting for its price. */
 export interface RestingOrder {
+  readonly kind: "limit" | "stop";
   readonly direction: Direction;
-  /** The limit price: an Ask for a buy, a Bid for a sell. */
+  /** The order price: an Ask for a buy, a Bid for a sell. */
   readonly price: number;
   /** Close time of the bar on which the order was placed, UTC ms. */
   readonly signalTime: number;
@@ -88,16 +89,45 @@ export interface LimitSpec {
 }
 
 /**
- * Part of the position closed at a price (TZ 17.10). The rest keeps the stop
- * and the take; with `breakeven` its stop moves to the entry price from the
- * next bar. A bar that reaches the stop and this price counts as a stop.
+ * A resting stop entry (TZ 17.15): a buy stop above the market, a sell stop
+ * below it. It works from the bar after the signal: a buy fills when the Ask
+ * reaches the price (Bid high plus the bar's spread), a sell when the Bid low
+ * does; a bar that opens beyond the price fills at the open. Slippage is paid
+ * as on any stop. In the bar of the fill only the stop loss is checked.
  */
-export interface PartialSpec {
+export interface StopEntrySpec {
   readonly price: number;
+  /**
+   * The order is cancelled when the price reaches this level before the fill
+   * (below the price for a buy, above for a sell), on the side a stop loss
+   * there would be hit: the Bid for a buy, the Ask for a sell. A bar that
+   * opens beyond it is cancelled. Any other bar that reaches both this level
+   * and the price counts as filled: the order inside it is unknown, and that
+   * is the worse case for the trader.
+   */
+  readonly cancelAt?: number;
+  /** The order is cancelled at the first bar that opens at or after this time (UTC ms). */
+  readonly expiresAt?: number;
+  /**
+   * Whether the order works in the bar that opens at this time (UTC ms). In a
+   * bar where it does not, reaching the price cancels the order instead of
+   * filling it. Omitted: it works in every bar.
+   */
+  readonly worksAt?: (barOpen: number) => boolean;
+}
+
+/**
+ * Part of the position closed at a price (TZ 17.10), given as a price or as a
+ * multiple of the actual stop distance from the actual entry (TZ 17.15). The
+ * rest keeps the stop and the take; with `breakeven` its stop moves to the
+ * entry price from the next bar. A bar that reaches the stop and this price
+ * counts as a stop.
+ */
+export type PartialSpec = ({ readonly price: number } | { readonly rMultiple: number }) & {
   /** Share of the lots closed, rounded down to the lot step; nothing is closed when that is 0. */
   readonly fraction: number;
   readonly breakeven: boolean;
-}
+};
 
 /** An absolute price, or a distance from the actual entry price. */
 export type StopLossSpec =
@@ -157,12 +187,18 @@ export interface Signal {
    * `reverse`, `notBefore` or `expectedEntryTime`.
    */
   readonly limit?: LimitSpec;
+  /**
+   * A resting stop order instead of a market fill at the next open
+   * (TZ 17.15). A new order replaces a resting one. Not combined with
+   * `limit`, `reverse`, `notBefore` or `expectedEntryTime`.
+   */
+  readonly stopEntry?: StopEntrySpec;
   /** Close part of the position at a price on the way to the take (TZ 17.10). */
   readonly partial?: PartialSpec;
   readonly reason: string;
 }
 
-/** Withdraw the resting limit order. Ignored when there is none. */
+/** Withdraw the resting limit or stop order. Ignored when there is none. */
 export interface CancelSignal {
   readonly kind: "cancel";
   readonly reason: string;

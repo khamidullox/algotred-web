@@ -18,8 +18,11 @@ import {
   fillEntry,
   fillLimit,
   fillMarketExit,
+  fillStopEntry,
   limitCancelReached,
   resolveLevels,
+  stopAfterStopEntry,
+  stopEntryCancel,
   type Fill,
 } from "./execution";
 import { LOT_STEP, lotsForRisk, riskAtStopUsd } from "./sizing";
@@ -35,12 +38,13 @@ import type {
   BacktestResult,
   Direction,
   ExitReason,
+  LimitSpec,
   MarketContext,
   OpenPosition,
-  PartialSpec,
   Signal,
   SkipReason,
   SkippedSignal,
+  StopEntrySpec,
   Strategy,
   StrategyAction,
   StrategyInstance,
@@ -91,10 +95,13 @@ interface Position {
   readonly breakevenAtR: number | null;
   /** Close time of the bar after which the stop was moved, or null. */
   breakevenTime: number | null;
-  /** Filled by a resting limit order (TZ 17.10): in the bar of the fill only the stop is checked. */
-  readonly limitEntry: boolean;
-  /** Partial close still to come (TZ 17.10), or null. */
-  readonly partial: PartialSpec | null;
+  /**
+   * The resting order that filled the position (TZ 17.10, 17.15), or null for
+   * a market entry: in the bar of such a fill only the stop is checked.
+   */
+  readonly orderEntry: "limit" | "stop" | null;
+  /** Partial close still to come (TZ 17.10), its level already a price, or null. */
+  readonly partial: { readonly price: number; readonly fraction: number; readonly breakeven: boolean } | null;
   /** Lots the partial close takes, rounded down to the lot step; 0 when nothing is closed. */
   readonly partialLots: number;
   /** The partial close once it happened. */
@@ -119,10 +126,14 @@ interface SymbolState {
   now: number;
   position: Position | null;
   pending: { action: StrategyAction; signalTime: number } | null;
-  /** Resting limit order (TZ 17.10); it works from the bar after its signal. */
-  order: { signal: Signal & { limit: NonNullable<Signal["limit"]> }; signalTime: number } | null;
+  /** Resting limit or stop order (TZ 17.10, 17.15); it works from the bar after its signal. */
+  order: RestingOrderState | null;
   readonly ctx: MarketContext;
 }
+
+type RestingOrderState =
+  | { readonly kind: "limit"; readonly signal: Signal; readonly spec: LimitSpec; readonly signalTime: number }
+  | { readonly kind: "stop"; readonly signal: Signal; readonly spec: StopEntrySpec; readonly signalTime: number };
 
 function toOpenPosition(position: Position): OpenPosition {
   return {
@@ -311,9 +322,9 @@ export function runBacktest(input: BacktestInput): BacktestResult {
 
   /**
    * Opens a position from an entry fill: the USD exposure limit, the levels,
-   * the stop filters and the lot, in that order. Used by market and limit entries.
+   * the stop filters and the lot, in that order. Used by market, limit and stop entries.
    */
-  const enter = (state: SymbolState, bar: Bar, action: Signal, signalTime: number, entry: Fill, limitEntry: boolean): void => {
+  const enter = (state: SymbolState, bar: Bar, action: Signal, signalTime: number, entry: Fill, orderEntry: "limit" | "stop" | null): void => {
     const { spec } = state;
     const { direction } = action;
     if (usdExposureLimit) {
@@ -377,6 +388,16 @@ export function runBacktest(input: BacktestInput): BacktestResult {
     }
 
     const partial = action.partial ?? null;
+    // A partial level given in R is measured from the actual fill (TZ 17.15).
+    const partialPrice =
+      partial === null
+        ? 0
+        : roundPrice(
+            spec,
+            "price" in partial
+              ? partial.price
+              : entry.price + (direction === "BUY" ? 1 : -1) * partial.rMultiple * levels.stopDistance,
+          );
     state.position = {
       direction,
       reason: action.reason,
@@ -392,8 +413,8 @@ export function runBacktest(input: BacktestInput): BacktestResult {
       best: entry.price,
       breakevenAtR: action.breakevenAtR ?? null,
       breakevenTime: null,
-      limitEntry,
-      partial: partial === null ? null : { ...partial, price: roundPrice(spec, partial.price) },
+      orderEntry,
+      partial: partial === null ? null : { price: partialPrice, fraction: partial.fraction, breakeven: partial.breakeven },
       partialLots: partial === null ? 0 : Math.floor((lots * partial.fraction) / LOT_STEP + 1e-9) / 100,
       partialFill: null,
       partialTime: null,
@@ -401,16 +422,16 @@ export function runBacktest(input: BacktestInput): BacktestResult {
   };
 
   const atOpen = (state: SymbolState, bar: Bar): void => {
-    // A resting limit order past its time is withdrawn before the bar trades (TZ 17.10).
+    // A resting order past its time is withdrawn before the bar trades (TZ 17.10).
     const order = state.order;
-    if (order !== null && order.signal.limit.expiresAt !== undefined && bar.time >= order.signal.limit.expiresAt) {
+    if (order !== null && order.spec.expiresAt !== undefined && bar.time >= order.spec.expiresAt) {
       state.order = null;
       skip(
         state,
         order.signal.direction,
         order.signalTime,
         "order-expired",
-        `не исполнен до ${formatInZone(order.signal.limit.expiresAt, zone)} (время сервера)`,
+        `не исполнен до ${formatInZone(order.spec.expiresAt, zone)} (время сервера)`,
       );
     }
     const pending = state.pending;
@@ -453,15 +474,44 @@ export function runBacktest(input: BacktestInput): BacktestResult {
       );
       return;
     }
-    enter(state, bar, action, signalTime, fillEntry(spec, direction, bar, costs), false);
+    enter(state, bar, action, signalTime, fillEntry(spec, direction, bar, costs), null);
   };
 
-  /** A resting limit order inside the bar: cancelled, filled, or still waiting (TZ 17.10). */
+  /** A resting stop order inside the bar: cancelled, filled, or still waiting (TZ 17.15). */
+  const workStopEntry = (state: SymbolState, bar: Bar, signal: Signal, stop: StopEntrySpec, signalTime: number): void => {
+    const { spec, costs } = state;
+    const { direction } = signal;
+    const cancel = stop.cancelAt === undefined ? null : stopEntryCancel(spec, direction, bar, stop.cancelAt, costs);
+    const fill = fillStopEntry(spec, direction, bar, roundPrice(spec, stop.price), costs);
+    const works = stop.worksAt === undefined || stop.worksAt(bar.time);
+    // A bar that opens beyond the cancel level reached it first. Inside a
+    // bar the order is unknown: a working order that reached its price is
+    // filled (and then stopped), the worse case; otherwise the level cancels.
+    if (stop.cancelAt !== undefined && (cancel === "open" || (cancel === "inside" && (fill === null || !works)))) {
+      state.order = null;
+      skip(state, direction, signalTime, "order-cancelled", `цена дошла до ${stop.cancelAt.toFixed(spec.digits)} раньше исполнения`);
+      return;
+    }
+    if (fill === null) return;
+    state.order = null;
+    if (!works) {
+      skip(state, direction, signalTime, "order-cancelled", "цена дошла до ордера, когда он не работал");
+      return;
+    }
+    enter(state, bar, signal, signalTime, fill, "stop");
+  };
+
+  /** A resting order inside the bar: cancelled, filled, or still waiting (TZ 17.10, 17.15). */
   const workOrder = (state: SymbolState, bar: Bar): void => {
     const order = state.order;
     if (order === null || state.position !== null) return;
     const { signal, signalTime } = order;
-    const { limit, direction } = signal;
+    if (order.kind === "stop") {
+      workStopEntry(state, bar, signal, order.spec, signalTime);
+      return;
+    }
+    const limit = order.spec;
+    const { direction } = signal;
     const fill = fillLimit(state.spec, direction, bar, roundPrice(state.spec, limit.price), state.costs);
     // The order inside a bar is unknown: a bar that reaches the cancel level
     // counts as cancelled even if it reached the price too.
@@ -472,7 +522,7 @@ export function runBacktest(input: BacktestInput): BacktestResult {
     }
     if (fill === null) return;
     state.order = null;
-    enter(state, bar, signal, signalTime, fill, true);
+    enter(state, bar, signal, signalTime, fill, "limit");
   };
 
   const unreachable = (direction: Direction): number => (direction === "BUY" ? -Infinity : Infinity);
@@ -481,10 +531,10 @@ export function runBacktest(input: BacktestInput): BacktestResult {
     workOrder(state, bar);
     const position = state.position;
     if (position === null) return;
-    // In the bar where a limit order filled, what happened before the fill
+    // In the bar where a resting order filled, what happened before the fill
     // is not the position's: only the stop is checked, and only the adverse
-    // excursion is tracked (TZ 17.10, rule 8).
-    const fillBar = position.limitEntry && position.entryTime === bar.time;
+    // excursion is tracked (TZ 17.10, rule 8; TZ 17.15, rule 9).
+    const fillBar = position.orderEntry !== null && position.entryTime === bar.time;
     // Track the excursions on the side the position is closed on: a buy is
     // sold at the Bid, a sell is bought back at the Ask.
     if (position.direction === "BUY") {
@@ -496,7 +546,11 @@ export function runBacktest(input: BacktestInput): BacktestResult {
       if (!fillBar) position.best = Math.min(position.best, roundPrice(state.spec, bar.low + spread));
     }
     if (fillBar) {
-      const stop = checkStops(state.spec, position.direction, bar, position.stopLoss, null, state.costs);
+      // A stop entry filled after the open of its bar, so its stop has no gap rule.
+      const stop =
+        position.orderEntry === "stop"
+          ? stopAfterStopEntry(state.spec, position.direction, bar, position.stopLoss, state.costs)
+          : checkStops(state.spec, position.direction, bar, position.stopLoss, null, state.costs);
       if (stop !== null) closePosition(state, stop.fill, bar.time, stop.reason);
       return;
     }
@@ -566,9 +620,11 @@ export function runBacktest(input: BacktestInput): BacktestResult {
       return;
     }
 
-    // A limit entry rests from the next bar on (TZ 17.10); a new one replaces the old.
-    if (action.kind === "entry" && action.limit !== undefined) {
-      const limit = action.limit;
+    // A limit or stop entry rests from the next bar on (TZ 17.10, 17.15); a new one replaces the old.
+    if (action.kind === "entry" && (action.limit !== undefined || action.stopEntry !== undefined)) {
+      if (action.limit !== undefined && action.stopEntry !== undefined) {
+        throw new Error(`Стратегия ${strategy.name}: сигнал не может быть сразу лимитным и стоп-ордером.`);
+      }
       if (state.position !== null) {
         skip(state, action.direction, state.now, "position-open", "по этой паре уже открыта позиция");
         return;
@@ -581,7 +637,10 @@ export function runBacktest(input: BacktestInput): BacktestResult {
       if (replaced !== null) {
         skip(state, replaced.signal.direction, replaced.signalTime, "order-cancelled", "заменён новым ордером");
       }
-      state.order = { signal: { ...action, limit }, signalTime: state.now };
+      state.order =
+        action.stopEntry !== undefined
+          ? { kind: "stop", signal: action, spec: action.stopEntry, signalTime: state.now }
+          : { kind: "limit", signal: action, spec: action.limit as LimitSpec, signalTime: state.now };
       return;
     }
 
@@ -753,7 +812,7 @@ function createState(
         const order = state.order;
         return order === null
           ? null
-          : { direction: order.signal.direction, price: order.signal.limit.price, signalTime: order.signalTime };
+          : { kind: order.kind, direction: order.signal.direction, price: order.spec.price, signalTime: order.signalTime };
       },
       // The schedule is public in advance; the figures only once released.
       news: (from, to, filter) =>

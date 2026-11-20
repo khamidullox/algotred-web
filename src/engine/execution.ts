@@ -108,9 +108,94 @@ export function limitCancelReached(direction: Direction, bar: Bar, cancelAt: num
   return direction === "BUY" ? bar.high >= cancelAt : bar.low <= cancelAt;
 }
 
+/**
+ * A resting stop entry inside `bar` (TZ 17.15), or null when the price was
+ * not reached. A buy stop is an Ask price: it fills when `high + spread`
+ * reaches it, at the open Ask when the bar opens above it. A sell stop is a
+ * Bid price: it fills when `low` reaches it, at the open when the bar opens
+ * below it. Slippage is against the trader, as on a stop loss.
+ */
+export function fillStopEntry(
+  spec: SymbolSpec,
+  direction: Direction,
+  bar: Bar,
+  price: number,
+  costs: CostSettings,
+): Fill | null {
+  const slippage = slippageOf(spec, costs);
+  if (direction === "BUY") {
+    const spread = spreadOf(spec, bar, costs);
+    const ask = (bid: number): number => roundPrice(spec, bid + spread);
+    if (ask(bar.open) >= price) {
+      return { raw: bar.open, price: roundPrice(spec, bar.open + spread + slippage), spread, slippage };
+    }
+    if (ask(bar.high) >= price) {
+      return { raw: roundPrice(spec, price - spread), price: roundPrice(spec, price + slippage), spread, slippage };
+    }
+    return null;
+  }
+  if (bar.open <= price) {
+    return { raw: bar.open, price: roundPrice(spec, bar.open - slippage), spread: 0, slippage };
+  }
+  if (bar.low <= price) {
+    return { raw: price, price: roundPrice(spec, price - slippage), spread: 0, slippage };
+  }
+  return null;
+}
+
+/**
+ * Where `bar` reaches the cancel level of a resting stop entry (TZ 17.15): at
+ * its open, later inside it, or not at all. The level is checked on the side
+ * a stop loss there would be hit: the Bid low for a buy, the Ask high for a sell.
+ */
+export function stopEntryCancel(
+  spec: SymbolSpec,
+  direction: Direction,
+  bar: Bar,
+  cancelAt: number,
+  costs: CostSettings,
+): "open" | "inside" | null {
+  if (direction === "BUY") {
+    if (bar.open <= cancelAt) return "open";
+    return bar.low <= cancelAt ? "inside" : null;
+  }
+  const spread = spreadOf(spec, bar, costs);
+  const ask = (bid: number): number => roundPrice(spec, bid + spread);
+  if (ask(bar.open) >= cancelAt) return "open";
+  return ask(bar.high) >= cancelAt ? "inside" : null;
+}
+
 export interface StopHit {
   readonly reason: "stop" | "take";
   readonly fill: Fill;
+}
+
+/**
+ * The stop loss in the bar where a stop entry filled (TZ 17.15). The open of
+ * that bar came before the fill, so the gap rule of `checkStops` does not
+ * apply: the stop is hit at its level when the bar's extreme reaches it.
+ */
+export function stopAfterStopEntry(
+  spec: SymbolSpec,
+  direction: Direction,
+  bar: Bar,
+  stopLoss: number,
+  costs: CostSettings,
+): StopHit | null {
+  const slippage = slippageOf(spec, costs);
+  if (direction === "BUY") {
+    if (bar.low > stopLoss) return null;
+    return {
+      reason: "stop",
+      fill: { raw: stopLoss, price: roundPrice(spec, stopLoss - slippage), spread: 0, slippage },
+    };
+  }
+  const spread = spreadOf(spec, bar, costs);
+  if (roundPrice(spec, bar.high + spread) < stopLoss) return null;
+  return {
+    reason: "stop",
+    fill: { raw: stopLoss, price: roundPrice(spec, stopLoss + slippage), spread: 0, slippage },
+  };
 }
 
 /**
