@@ -2,7 +2,11 @@
 // writes them as MT5-style files for the research stand (TZ 17.18, 17.22).
 // These are exchange prices, not a broker's CFD: a research proxy.
 // The engine wants D1, H1 and M15 files; with daily data all three hold one
-// bar a day at 00:00, as the first years of the US index exports do.
+// bar a day. In the intraday files that bar is stamped 23:00, the last hour
+// of the day: the engine takes an hourly bar as closed an hour after its
+// stamp, so a bar stamped 00:00 "closes" 23 hours before its day does, the
+// daily signal is seen a day late and the entry comes a day after the rule
+// asks for it (TZ 17.22; the runs of 17.18 on these files had that delay).
 // Usage: node research/fetch-yahoo.mjs indices|stocks
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -88,7 +92,7 @@ function write(name, rows, digits, costShare) {
   const price = (value) => value.toFixed(digits);
   const spread = (row) => (costShare === 0 ? 0 : Math.max(1, Math.round((costShare * row.close) / point)));
   const daily = ["<DATE>\t<OPEN>\t<HIGH>\t<LOW>\t<CLOSE>\t<TICKVOL>\t<VOL>\t<SPREAD>", ...rows.map((r) => `${r.date}\t${price(r.open)}\t${price(r.high)}\t${price(r.low)}\t${price(r.close)}\t1\t0\t${spread(r)}`)].join("\r\n");
-  const intraday = ["<DATE>\t<TIME>\t<OPEN>\t<HIGH>\t<LOW>\t<CLOSE>\t<TICKVOL>\t<VOL>\t<SPREAD>", ...rows.map((r) => `${r.date}\t00:00:00\t${price(r.open)}\t${price(r.high)}\t${price(r.low)}\t${price(r.close)}\t1\t0\t${spread(r)}`)].join("\r\n");
+  const intraday = ["<DATE>\t<TIME>\t<OPEN>\t<HIGH>\t<LOW>\t<CLOSE>\t<TICKVOL>\t<VOL>\t<SPREAD>", ...rows.map((r) => `${r.date}\t23:00:00\t${price(r.open)}\t${price(r.high)}\t${price(r.low)}\t${price(r.close)}\t1\t0\t${spread(r)}`)].join("\r\n");
   writeFileSync(path.join(OUT, `${name}_D1.csv`), daily + "\r\n");
   writeFileSync(path.join(OUT, `${name}_H1.csv`), intraday + "\r\n");
   writeFileSync(path.join(OUT, `${name}_M15.csv`), intraday + "\r\n");
