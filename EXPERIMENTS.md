@@ -250,3 +250,76 @@
   - Стресс-тест, USD: -116.16
   - 95% ДИ среднего R: −0.200 … +0.149
   - Файлы: holdout/2026-11-19_14-19-46_Rsi2IndexControl
+
+### 2026-11-20 10:39:11 UTC · IbsDipIndexD1 · test
+
+- Набор данных: `test`, с 2021-12-09 по 2024-11-15 включительно (1073 дн., дни сервера `Europe/Athens`)
+- Параметры:
+  - ibsBelow: 0.1
+  - rsiPeriod: 2
+  - exitAboveRsi: 70
+  - maxDays: 10
+  - atrPeriod: 20
+  - atrMultiple: 2
+  - direction: long only
+  - atrMethod: Wilder
+  - rsiMethod: Wilder (as MT5 Relative Strength Index)
+  - signalTimeframe: D1
+  - executionTimeframe: H1
+  - initialCapitalUsd: 10000
+  - riskPerTradePct: 0.5
+  - minSpreadPoints: 5
+  - commissionPerLotRoundTrip: 7
+  - slippagePips: 0.2
+  - symbols: US500, US30, US2000
+  - swapPipsLongShort: {"EURUSD":[-1.3472,0.0107],"GBPUSD":[-1.713,-0.2977],"USDJPY":[-1.95912,-4.0755],"AUDUSD":[-0.687,-0.216],"NZDUSD":[0.134385,-0.24284],"USDCAD":[-0.26,-0.804],"USDCHF":[-0.99697,-1.6822],"XAUUSD":[-10.7151,-4.6917],"US500":[-13.4693,-3.663],"US30":[-23.2077,-99.606],"US2000":[-4.9956,-1.3586]}
+  - usdExposureLimit: false
+- Главные метрики:
+  - Вердикт: INCONCLUSIVE
+  - Сделок: 111
+  - Прибыльных: 66.7%
+  - Средний R: +0.004
+  - Profit Factor: 1.02
+  - Максимальная просадка: 3.6%
+  - Итог после издержек, USD: 29.81
+  - Итог до издержек, USD: 191.31
+  - Стресс-тест, USD: -67.09
+  - 95% ДИ среднего R: −0.124 … +0.134
+  - Файлы: test/2026-11-20_10-39-11_IbsDipIndexD1
+
+### 2026-11-20 10:40:00 UTC · IbsIndexControl · test
+
+- Набор данных: `test`, с 2021-12-09 по 2024-11-15 включительно (1073 дн., дни сервера `Europe/Athens`)
+- Параметры:
+  - ibsBelow: 0.55
+  - rsiPeriod: 2
+  - exitAboveRsi: 70
+  - maxDays: 10
+  - atrPeriod: 20
+  - atrMultiple: 2
+  - ibsFrom: 0.45
+  - direction: long only
+  - atrMethod: Wilder
+  - rsiMethod: Wilder (as MT5 Relative Strength Index)
+  - signalTimeframe: D1
+  - executionTimeframe: H1
+  - initialCapitalUsd: 10000
+  - riskPerTradePct: 0.5
+  - minSpreadPoints: 5
+  - commissionPerLotRoundTrip: 7
+  - slippagePips: 0.2
+  - symbols: US500, US30, US2000
+  - swapPipsLongShort: {"EURUSD":[-1.3472,0.0107],"GBPUSD":[-1.713,-0.2977],"USDJPY":[-1.95912,-4.0755],"AUDUSD":[-0.687,-0.216],"NZDUSD":[0.134385,-0.24284],"USDCAD":[-0.26,-0.804],"USDCHF":[-0.99697,-1.6822],"XAUUSD":[-10.7151,-4.6917],"US500":[-13.4693,-3.663],"US30":[-23.2077,-99.606],"US2000":[-4.9956,-1.3586]}
+  - usdExposureLimit: false
+- Главные метрики:
+  - Вердикт: REJECT
+  - Сделок: 94
+  - Прибыльных: 71.3%
+  - Средний R: +0.079
+  - Profit Factor: 1.52
+  - Максимальная просадка: 1.6%
+  - Итог после издержек, USD: 315.43
+  - Итог до издержек, USD: 450.74
+  - Стресс-тест, USD: 272.16
+  - 95% ДИ среднего R: −0.024 … +0.184
+  - Файлы: test/2026-11-20_10-40-00_IbsIndexControl
