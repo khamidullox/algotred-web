@@ -124,7 +124,7 @@ function createInstance() {
         `L ${price(entry)} (${buy ? "high" : "low"} ${at(middle.index)}); ` +
         `середина ${price(middle.price)}; ` +
         `${name} ${at(first.index)} ${price(first.price)}; ${name} ${at(second.index)} ${price(second.price)}; ` +
-        `подтверждение ${time(ctx, ctx.now)}; ATR(14) ${price(atrValue)}; стоп ${price(stop)}`,
+        `ордер ${time(ctx, ctx.now)}; ATR(14) ${price(atrValue)}; стоп ${price(stop)}`,
     };
   };
 

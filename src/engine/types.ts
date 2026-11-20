@@ -315,6 +315,21 @@ export interface SkippedSignal {
   readonly signalTime: number;
   readonly reason: SkipReason;
   readonly detail: string;
+  /** For a resting order that went without a fill (TZ 17.15): what it was and when it went. */
+  readonly order?: WithdrawnOrder;
+}
+
+export interface WithdrawnOrder {
+  readonly kind: "limit" | "stop";
+  readonly price: number;
+  /**
+   * When the order went, UTC ms: the open of the bar that cancelled it, or
+   * the close of the bar on which the strategy withdrew or replaced it or
+   * the data ended.
+   */
+  readonly endTime: number;
+  /** The reason text of the signal that placed it. */
+  readonly reason: string;
 }
 
 export interface BacktestResult {

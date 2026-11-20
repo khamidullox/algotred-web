@@ -5,7 +5,7 @@ import { DATASETS, type Config, type Dataset } from "../../config";
 import { describeSpan } from "../../data/split";
 import type { Report } from "../../report/build-report";
 import { REPORT_JSON, REPORT_MD, type SavedRun } from "../../report/save-run";
-import type { ChartTrade, RunResponse, RunSummary } from "./api-types";
+import type { ChartOrder, ChartTrade, RunResponse, RunSummary } from "./api-types";
 import { parseReason } from "./trade-reason";
 import { newsBreakdown, type NewsBreakdown } from "../../report/news";
 import { getCalendar } from "./data-store";
@@ -121,11 +121,30 @@ export function readRun(config: Config, id: string): RunResponse | null {
     exitTime: trade.exitTime / 1000,
     exitPrice: trade.exitPrice,
     exitReason: trade.exitReason,
+    // Runs saved before partial closes existed have no such fields.
+    partialTime: trade.partialTime == null || trade.partialPrice == null ? null : trade.partialTime / 1000,
+    partialPrice: trade.partialTime == null ? null : (trade.partialPrice ?? null),
     lots: trade.lots,
     netPnlUsd: trade.netPnlUsd,
     rMultiple: trade.rMultiple,
     reason: trade.reason,
     marks: parseReason(trade.reason, run.brokerTimeZone),
   }));
-  return { summary: summarize(id, run), brokerTimeZone: run.brokerTimeZone, trades };
+  const orders: ChartOrder[] = (run.skipped ?? []).flatMap((skip) =>
+    skip.order === undefined
+      ? []
+      : [
+          {
+            symbol: skip.symbol,
+            direction: skip.direction,
+            kind: skip.order.kind,
+            price: skip.order.price,
+            placedTime: skip.signalTime / 1000,
+            endTime: skip.order.endTime / 1000,
+            detail: skip.detail,
+            marks: parseReason(skip.order.reason, run.brokerTimeZone),
+          },
+        ],
+  );
+  return { summary: summarize(id, run), brokerTimeZone: run.brokerTimeZone, trades, orders };
 }

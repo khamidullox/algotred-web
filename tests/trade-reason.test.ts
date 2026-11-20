@@ -55,6 +55,28 @@ describe("parseReason", () => {
     expect(marks.moments).toEqual([{ label: "касание", time: utc("2021-04-28T21:00:00Z") }]);
   });
 
+  it("reads the order level, the two bottoms and the order of DoubleBottomH1", () => {
+    const marks = parseReason(
+      "L 1.19911 (high 2024-05-07 10:00); середина 1.19900; дно 2024-05-07 06:00 1.19400; дно 2024-05-07 15:00 1.19420; ордер 2024-05-07 21:00; ATR(14) 0.00111; стоп 1.19389",
+      ZONE,
+    );
+    expect(marks.level).toBe(1.19911);
+    // Athens is UTC+3 in May.
+    expect(marks.levelFrom).toBe(utc("2024-05-07T07:00:00Z"));
+    expect(marks.moments).toEqual([
+      { label: "дно", time: utc("2024-05-07T03:00:00Z") },
+      { label: "дно", time: utc("2024-05-07T12:00:00Z") },
+      { label: "ордер", time: utc("2024-05-07T18:00:00Z") },
+    ]);
+    const top = parseReason("L 1.20089 (low 2024-05-07 10:00); середина 1.20100; вершина 2024-05-07 06:00 1.20600; вершина 2024-05-07 15:00 1.20580; ордер 2024-05-07 21:00", ZONE);
+    expect(top.moments.map((moment) => moment.label)).toEqual(["вершина", "вершина", "ордер"]);
+  });
+
+  it("reads moments as whole words only", () => {
+    const marks = parseReason("L 1.10000; одно 2024-05-07 06:00; середина 2024-05-07 07:00", ZONE);
+    expect(marks.moments).toEqual([]);
+  });
+
   it("finds nothing in reasons without levels", () => {
     const marks = parseReason("RSI(2) 3.1 < 5, close 1.1050 > SMA(200) 1.0900", ZONE);
     expect(marks).toEqual({ level: null, levelFrom: null, moments: [], trendLine: null });

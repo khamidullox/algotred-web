@@ -199,7 +199,7 @@ describe("DoubleBottomH1 on a hand-made double bottom", () => {
     expect(trade.reason).toContain(`L ${entry.toFixed(5)} (high 2024-05-07 10:00)`);
     expect(trade.reason).toContain("середина 1.19900");
     expect(trade.reason).toContain("дно 2024-05-07 06:00 1.19400; дно 2024-05-07 15:00 1.19420");
-    expect(trade.reason).toContain("подтверждение 2024-05-07 21:00");
+    expect(trade.reason).toContain("ордер 2024-05-07 21:00");
     expect(trade.reason).toContain(`стоп ${stop.toFixed(5)}`);
   });
 
@@ -288,6 +288,12 @@ describe("DoubleBottomH1 rules", () => {
     const late = run(scenario(hours(FIGURE, repeat(HOVER, 24), [REACH])).bars);
     expect(late.trades).toEqual([]);
     expect(skips(late)).toEqual([["order-cancelled", "не исполнен за 24 свечи H1"]]);
+    // The record keeps the order for the chart: its price, when it went and the figure.
+    const [skip] = late.skipped;
+    expect(skip?.signalTime).toBe(at("2024-05-07T21:00"));
+    expect(skip?.order?.kind).toBe("stop");
+    expect(skip?.order?.endTime).toBe(at("2024-05-08T21:00"));
+    expect(skip?.order?.reason).toContain(`L ${skip?.order?.price.toFixed(5)} (high 2024-05-07 10:00)`);
   });
 
   it("withdraws the order when the price comes down to the stop", () => {

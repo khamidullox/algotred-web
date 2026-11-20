@@ -19,7 +19,8 @@ export function parseReason(reason: string, zone: string): ReasonMarks {
 
   const moments: TradeMoment[] = [];
   const pattern = new RegExp(
-    String.raw`(пробой(?: вверх| вниз)?|ретест|подтверждение|провал|касание) ${DATE}`,
+    // Whole words only: «дно» must not be found inside another word.
+    String.raw`(?<![а-яё])(пробой(?: вверх| вниз)?|ретест|подтверждение|провал|касание|дно|вершина|ордер) ${DATE}`,
     "g",
   );
   for (const match of reason.matchAll(pattern)) {

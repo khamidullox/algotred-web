@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AnyTimeframe, SymbolName } from "../../config";
-import type { ApiError, BarsResponse, ChartBar, ChartTrade, NewsItem, NewsResponse, RunResponse, RunSummary } from "../_lib/api-types";
+import type { ApiError, BarsResponse, ChartBar, ChartOrder, ChartTrade, NewsItem, NewsResponse, RunResponse, RunSummary } from "../_lib/api-types";
 import { aggregateH4, atr, barAtOrBefore, channel, rsiWilder, sma, swingLevels } from "../_lib/chart-math";
 import { CHANNEL_COLOR, NEWS_COLORS, ProChart, SMA_FAST_COLOR, SMA_SLOW_COLOR, type Focus, type Studies } from "./pro-chart";
 import { GUIDES, guideFor, type StrategyGuide, type ViewTimeframe } from "./strategy-guide";
@@ -330,6 +330,11 @@ export function ChartWorkspace({
     () => run?.trades.filter((trade) => trade.symbol === symbol) ?? [],
     [run, symbol],
   );
+  // Runs saved before unfilled orders were recorded have no such list.
+  const orders = useMemo<readonly ChartOrder[]>(
+    () => (run?.orders ?? []).filter((order) => order.symbol === symbol),
+    [run, symbol],
+  );
   const guide = run === null ? undefined : guideFor(run.summary.strategy);
 
   const focusOn = useCallback(
@@ -585,6 +590,7 @@ export function ChartWorkspace({
           intraday={intraday}
           studies={studies}
           trades={trades}
+          orders={orders}
           news={news}
           lines={lines}
           drawing={drawing}
@@ -603,6 +609,7 @@ export function ChartWorkspace({
             ` Свечи с ${formatServer(loaded.hiddenFrom, false)} не показываются: это набор holdout, его не смотрим до финальной проверки.`}
           {trades.length > 0 &&
             " Сделки: стрелка — вход, кружок — выход, красный и зелёный пунктир — стоп и тейк, синие точки — уровень сделки, серые квадраты — моменты, которые назвала стратегия."}
+          {orders.length > 0 && " Серая линия с квадратом на конце — ордер, который снят без сделки."}
         </p>
 
         {runError !== null && <div className="card error">{runError}</div>}

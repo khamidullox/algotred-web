@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type * as LW from "lightweight-charts";
-import type { ChartBar, ChartTrade, NewsItem } from "../_lib/api-types";
+import type { ChartBar, ChartOrder, ChartTrade, NewsItem } from "../_lib/api-types";
 import {
   barAtOrBefore,
   exitBarIndex,
@@ -82,6 +82,8 @@ export function ProChart(props: {
   intraday: boolean;
   studies: Studies;
   trades: readonly ChartTrade[];
+  /** Resting orders of the run that were never filled (TZ 17.15). */
+  orders: readonly ChartOrder[];
   /** Economic calendar releases to flag above the candles. */
   news: readonly NewsItem[];
   lines: readonly number[];
@@ -91,7 +93,7 @@ export function ProChart(props: {
   onHover: (index: number | null) => void;
   onEdge: (side: "older" | "newer") => void;
 }) {
-  const { bars, dataKey, digits, intraday, studies, trades, news, lines, focus } = props;
+  const { bars, dataKey, digits, intraday, studies, trades, orders, news, lines, focus } = props;
   const container = useRef<HTMLDivElement>(null);
   const library = useRef<typeof LW | null>(null);
   const chartRef = useRef<LW.IChartApi | null>(null);
@@ -328,6 +330,20 @@ export function ProChart(props: {
         }
         stops.push({ from, to, value: trade.stopLoss });
         if (trade.takeProfit !== null) takes.push({ from, to, value: trade.takeProfit });
+        // The part closed on the way to the take (TZ 17.10): a dot at its price.
+        if (trade.partialTime !== null && trade.partialPrice !== null && trade.partialTime <= last.time) {
+          const partial = indexOf(trade.partialTime);
+          if (partial !== -1) {
+            markers.push({
+              time: at(partial),
+              position: "atPriceMiddle",
+              price: trade.partialPrice,
+              shape: "circle",
+              color: good,
+              text: `часть закрыта ${price(trade.partialPrice)}`,
+            });
+          }
+        }
         for (const moment of trade.marks.moments) {
           const index = indexOf(moment.time);
           if (index === -1 || moment.time > last.time) continue;
@@ -363,6 +379,27 @@ export function ProChart(props: {
           extras.current.push(trend);
         }
       }
+      // Orders that were never filled (TZ 17.15): the order price from the bar
+      // its level comes from to the bar where the order went, and a square there.
+      const unfilled: Segment[] = [];
+      for (const order of orders) {
+        if (order.endTime < first.time || order.placedTime > last.time) continue;
+        const placed = indexOf(order.placedTime);
+        const end = order.endTime > last.time ? bars.length - 1 : indexOf(order.endTime);
+        const origin = order.marks.levelFrom === null ? -1 : indexOf(order.marks.levelFrom);
+        const from = Math.max(0, Math.min(...[placed, origin].filter((index) => index !== -1), end));
+        if (end > from) unfilled.push({ from, to: end, value: order.price });
+        if (order.endTime <= last.time && end !== -1) {
+          markers.push({
+            time: at(end),
+            position: "atPriceMiddle",
+            price: order.price,
+            shape: "square",
+            color: MOMENT_COLOR,
+            text: `${order.direction === "BUY" ? "buy" : "sell"} ${order.kind} ${price(order.price)} снят: ${order.detail}`,
+          });
+        }
+      }
       // Calendar releases: one flag per bar and currency, coloured by importance.
       const flagged = new Set<string>();
       for (const item of news) {
@@ -384,6 +421,7 @@ export function ProChart(props: {
       segments(stops, { color: bad, lineStyle: lw.LineStyle.Dashed });
       segments(takes, { color: good, lineStyle: lw.LineStyle.Dashed });
       segments(levels, { color: accent, lineStyle: lw.LineStyle.Dotted, lineWidth: 2 });
+      segments(unfilled, { color: MOMENT_COLOR, lineStyle: lw.LineStyle.Dotted, lineWidth: 2 });
       segments(wins, { color: good, lineStyle: lw.LineStyle.SparseDotted, lineWidth: 2 });
       segments(losses, { color: bad, lineStyle: lw.LineStyle.SparseDotted, lineWidth: 2 });
       markers.sort((a, b) => (a.time as number) - (b.time as number));
@@ -419,7 +457,7 @@ export function ProChart(props: {
       quiet.current = false;
     }, 150);
     return () => window.clearTimeout(release);
-  }, [ready, bars, dataKey, digits, intraday, studies, trades, news]);
+  }, [ready, bars, dataKey, digits, intraday, studies, trades, orders, news]);
 
   // Centre on a requested moment once its bar is loaded.
   useEffect(() => {

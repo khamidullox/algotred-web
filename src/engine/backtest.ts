@@ -199,6 +199,24 @@ export function runBacktest(input: BacktestInput): BacktestResult {
     skipped.push({ symbol: state.symbol, direction, signalTime, reason, detail });
   };
 
+  /** A resting order that goes without a fill: the record keeps what it was and when it went. */
+  const skipOrder = (
+    state: SymbolState,
+    order: RestingOrderState,
+    reason: "order-cancelled" | "order-expired",
+    detail: string,
+    endTime: number,
+  ): void => {
+    skipped.push({
+      symbol: state.symbol,
+      direction: order.signal.direction,
+      signalTime: order.signalTime,
+      reason,
+      detail,
+      order: { kind: order.kind, price: roundPrice(state.spec, order.spec.price), endTime, reason: order.signal.reason },
+    });
+  };
+
   const closePosition = (
     state: SymbolState,
     fill: Fill,
@@ -426,13 +444,7 @@ export function runBacktest(input: BacktestInput): BacktestResult {
     const order = state.order;
     if (order !== null && order.spec.expiresAt !== undefined && bar.time >= order.spec.expiresAt) {
       state.order = null;
-      skip(
-        state,
-        order.signal.direction,
-        order.signalTime,
-        "order-expired",
-        `не исполнен до ${formatInZone(order.spec.expiresAt, zone)} (время сервера)`,
-      );
+      skipOrder(state, order, "order-expired", `не исполнен до ${formatInZone(order.spec.expiresAt, zone)} (время сервера)`, bar.time);
     }
     const pending = state.pending;
     if (pending === null) return;
@@ -478,8 +490,9 @@ export function runBacktest(input: BacktestInput): BacktestResult {
   };
 
   /** A resting stop order inside the bar: cancelled, filled, or still waiting (TZ 17.15). */
-  const workStopEntry = (state: SymbolState, bar: Bar, signal: Signal, stop: StopEntrySpec, signalTime: number): void => {
+  const workStopEntry = (state: SymbolState, bar: Bar, order: RestingOrderState & { kind: "stop" }): void => {
     const { spec, costs } = state;
+    const { signal, signalTime, spec: stop } = order;
     const { direction } = signal;
     const cancel = stop.cancelAt === undefined ? null : stopEntryCancel(spec, direction, bar, stop.cancelAt, costs);
     const fill = fillStopEntry(spec, direction, bar, roundPrice(spec, stop.price), costs);
@@ -489,13 +502,13 @@ export function runBacktest(input: BacktestInput): BacktestResult {
     // filled (and then stopped), the worse case; otherwise the level cancels.
     if (stop.cancelAt !== undefined && (cancel === "open" || (cancel === "inside" && (fill === null || !works)))) {
       state.order = null;
-      skip(state, direction, signalTime, "order-cancelled", `цена дошла до ${stop.cancelAt.toFixed(spec.digits)} раньше исполнения`);
+      skipOrder(state, order, "order-cancelled", `цена дошла до ${stop.cancelAt.toFixed(spec.digits)} раньше исполнения`, bar.time);
       return;
     }
     if (fill === null) return;
     state.order = null;
     if (!works) {
-      skip(state, direction, signalTime, "order-cancelled", "цена дошла до ордера, когда он не работал");
+      skipOrder(state, order, "order-cancelled", "цена дошла до ордера, когда он не работал", bar.time);
       return;
     }
     enter(state, bar, signal, signalTime, fill, "stop");
@@ -507,7 +520,7 @@ export function runBacktest(input: BacktestInput): BacktestResult {
     if (order === null || state.position !== null) return;
     const { signal, signalTime } = order;
     if (order.kind === "stop") {
-      workStopEntry(state, bar, signal, order.spec, signalTime);
+      workStopEntry(state, bar, order);
       return;
     }
     const limit = order.spec;
@@ -517,7 +530,7 @@ export function runBacktest(input: BacktestInput): BacktestResult {
     // counts as cancelled even if it reached the price too.
     if (limit.cancelAt !== undefined && limitCancelReached(direction, bar, limit.cancelAt)) {
       state.order = null;
-      skip(state, direction, signalTime, "order-cancelled", `цена дошла до ${limit.cancelAt.toFixed(state.spec.digits)} раньше исполнения`);
+      skipOrder(state, order, "order-cancelled", `цена дошла до ${limit.cancelAt.toFixed(state.spec.digits)} раньше исполнения`, bar.time);
       return;
     }
     if (fill === null) return;
@@ -615,7 +628,7 @@ export function runBacktest(input: BacktestInput): BacktestResult {
       const order = state.order;
       if (order !== null) {
         state.order = null;
-        skip(state, order.signal.direction, order.signalTime, "order-cancelled", action.reason);
+        skipOrder(state, order, "order-cancelled", action.reason, state.now);
       }
       return;
     }
@@ -635,7 +648,7 @@ export function runBacktest(input: BacktestInput): BacktestResult {
       }
       const replaced = state.order;
       if (replaced !== null) {
-        skip(state, replaced.signal.direction, replaced.signalTime, "order-cancelled", "заменён новым ордером");
+        skipOrder(state, replaced, "order-cancelled", "заменён новым ордером", state.now);
       }
       state.order =
         action.stopEntry !== undefined
@@ -699,15 +712,15 @@ export function runBacktest(input: BacktestInput): BacktestResult {
   }
 
   // A position still open when the data ends is closed at the last close;
-  // a limit order still resting is withdrawn.
+  // a resting order is withdrawn.
   for (const state of states) {
+    const last = state.exec[state.end - 1] as Bar;
     const order = state.order;
     if (order !== null) {
       state.order = null;
-      skip(state, order.signal.direction, order.signalTime, "order-expired", "набор закончился раньше исполнения");
+      skipOrder(state, order, "order-expired", "набор закончился раньше исполнения", last.time + execStep);
     }
     if (state.position === null) continue;
-    const last = state.exec[state.end - 1] as Bar;
     const fill = fillMarketExit(
       state.spec,
       state.position.direction,

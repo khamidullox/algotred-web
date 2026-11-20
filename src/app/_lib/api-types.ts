@@ -111,6 +111,9 @@ export interface ChartTrade {
   exitTime: number;
   exitPrice: number;
   exitReason: ChartTradeExit;
+  /** Partial close on the way to the take (TZ 17.10), or null. */
+  partialTime: number | null;
+  partialPrice: number | null;
   lots: number;
   netPnlUsd: number;
   rMultiple: number;
@@ -118,8 +121,23 @@ export interface ChartTrade {
   marks: ReasonMarks;
 }
 
+/** A resting order that went without a fill (TZ 17.15). Times in UTC seconds, like ChartBar. */
+export interface ChartOrder {
+  symbol: SymbolName;
+  direction: "BUY" | "SELL";
+  kind: "limit" | "stop";
+  price: number;
+  placedTime: number;
+  endTime: number;
+  /** Why it went, in the engine's words. */
+  detail: string;
+  marks: ReasonMarks;
+}
+
 export interface RunResponse {
   summary: RunSummary;
   brokerTimeZone: string;
   trades: ChartTrade[];
+  /** Orders that were never filled; empty for runs saved before they were recorded. */
+  orders: ChartOrder[];
 }

@@ -102,6 +102,8 @@ describe("stop entry", () => {
     const result = run(patched({ "2024-01-08T10:30": { low: 1.0985 }, "2024-01-08T10:45": { high: 1.1015 } }));
     expect(result.trades).toEqual([]);
     expect(skips(result)).toEqual([["order-cancelled", "цена дошла до 1.09900 раньше исполнения"]]);
+    // The record says what the order was and in which bar it went.
+    expect(result.skipped[0]?.order).toEqual({ kind: "stop", price: 1.101, endTime: at("2024-01-08T10:30"), reason: "test" });
   });
 
   it("is cancelled by a bar that opens beyond the cancel level, even if it reaches the price later", () => {
@@ -170,6 +172,8 @@ describe("stop entry", () => {
     });
     expect(withdrawn.trades).toEqual([]);
     expect(skips(withdrawn)).toEqual([["order-cancelled", "отмена"]]);
+    // Withdrawn by the strategy at the close of the 10:15 bar.
+    expect(withdrawn.skipped[0]?.order?.endTime).toBe(at("2024-01-08T10:30"));
   });
 
   it("lets the strategy see its resting stop order", () => {
