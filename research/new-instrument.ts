@@ -3,8 +3,8 @@
 // a search. The instruments are not in config/default.json, where their
 // history would move the start of `dev` for everything else; their files live
 // in folders of their own and their costs are set here.
-// Usage: npx tsx research/new-instrument.ts ndx|calibrate|world
-import { readFileSync } from "node:fs";
+// Usage: npx tsx research/new-instrument.ts ndx|calibrate|world [file for the trades of the strategy]
+import { readFileSync, writeFileSync } from "node:fs";
 import { loadConfig, type Config, type SymbolConfig } from "../src/config";
 import { readSeriesInput } from "../src/data/load";
 import { startOfZoneDay } from "../src/data/time";
@@ -140,6 +140,7 @@ function report(label: string, instruments: readonly Instrument[], from: string 
     for (const costMultiplier of [1, 2]) {
       const result = runBacktest({ data, strategy: own, span, config, options: { costMultiplier } });
       console.log(line(`${strategy.name}${costMultiplier === 1 ? "" : " | costs x2"}`, metricsOf(result)));
+      if (costMultiplier === 1 && strategy === rsi2ReversionIndexD1 && process.argv[3] !== undefined) writeFileSync(process.argv[3], JSON.stringify(result.trades));
       if (costMultiplier === 1) {
         const buys = result.trades.filter((trade) => trade.direction === "BUY");
         const sells = result.trades.filter((trade) => trade.direction === "SELL");
