@@ -3,7 +3,7 @@
 // a search. The instruments are not in config/default.json, where their
 // history would move the start of `dev` for everything else; their files live
 // in folders of their own and their costs are set here.
-// Usage: npx tsx research/new-instrument.ts ndx|calibrate|world [file for the trades of the strategy]
+// Usage: npx tsx research/new-instrument.ts ndx|ndx-broker|ndx2|calibrate|world [file for the trades of the strategy]
 import { readFileSync, writeFileSync } from "node:fs";
 import { loadConfig, type Config, type SymbolConfig } from "../src/config";
 import { readSeriesInput } from "../src/data/load";
@@ -49,6 +49,40 @@ const NASDAQ: Instrument = {
   },
 };
 
+/**
+ * The same export with the contract FundedNext gives NDX100 (help centre and
+ * swap calculator, read 2026-11-18 and 2026-11-20): 10 USD a point for one
+ * lot, swap -372.912 / -57.6 points a lot a night, which is -3.729 / -0.576
+ * index points; the index stood near 27116 then. The spread is not published,
+ * so the 2.0-point floor stays an assumption.
+ */
+const NASDAQ_FUNDEDNEXT: Instrument = {
+  ...NASDAQ,
+  config: { ...NASDAQ.config, contractSize: 10, swapLongPips: -3.72912, swapShortPips: -0.576, swapReferencePrice: 27116 },
+};
+
+/**
+ * The same index from the MetaQuotes-Demo server (history from 2022-07-06, two
+ * decimals): a second export to check the first against. The same cost shares.
+ */
+const NASDAQ_METAQUOTES: Instrument = {
+  symbol: "USTEC",
+  dataDir: "data/raw/research-ndx",
+  config: {
+    digits: 2,
+    contractSize: 1,
+    usdSide: "quote",
+    commissionPerLotRoundTrip: 0,
+    tripleSwapDay: "friday",
+    timeZoneCheck: false,
+    swapLongPips: -50.443,
+    swapShortPips: -13.719,
+    swapReferencePrice: 28391.5,
+    minSpreadPoints: 200,
+    slippagePoints: 100,
+  },
+};
+
 const YAHOO_DIR = "data/raw/research-yahoo";
 
 /**
@@ -85,8 +119,9 @@ function exchangeIndex(symbol: string): Instrument {
 /** The server date the dev dataset starts on: the exchange files go back to 2012, so the indicators are warm by then. */
 const FROM = "2015-02-02";
 
-function load(instruments: readonly Instrument[], from: string | null): { config: Config; data: SymbolData[]; span: { start: number; end: number } } {
-  const main = loadConfig();
+function load(instruments: readonly Instrument[], from: string | null, riskPerTradePct?: number): { config: Config; data: SymbolData[]; span: { start: number; end: number } } {
+  const base = loadConfig();
+  const main = riskPerTradePct === undefined ? base : { ...base, riskPerTradePct };
   const zone = main.brokerTimeZone;
   const config: Config = {
     ...main,
@@ -130,8 +165,8 @@ function eras(result: BacktestResult): string {
   return [part("to 2021-12-08", of(-Infinity, test)), part("to 2024-11-15", of(test, holdout)), part("after", of(holdout, Infinity))].join("; ");
 }
 
-function report(label: string, instruments: readonly Instrument[], from: string | null): void {
-  const { config, data, span } = load(instruments, from);
+function report(label: string, instruments: readonly Instrument[], from: string | null, riskPerTradePct?: number): void {
+  const { config, data, span } = load(instruments, from, riskPerTradePct);
   console.log(`\n${label}: ${instruments.map((instrument) => instrument.symbol).join(", ")}; span ${day(span.start)} to ${day(span.end)} (UTC dates)`);
   console.log(header());
   const strategies: readonly Strategy[] = [rsi2ReversionIndexD1, rsi2IndexControl];
@@ -153,11 +188,17 @@ function report(label: string, instruments: readonly Instrument[], from: string 
 const basket = process.argv[2];
 if (basket === "ndx") {
   report("Nasdaq 100 CFD, never used before", [NASDAQ], null);
+} else if (basket === "ndx-broker") {
+  // How many signals the 0.01-lot step leaves on a 10,000 USD account.
+  report("Nasdaq 100 with the FundedNext contract, risk 0.5% a trade", [NASDAQ_FUNDEDNEXT], null);
+  report("Nasdaq 100 with the FundedNext contract, risk 1% a trade", [NASDAQ_FUNDEDNEXT], null, 1);
+} else if (basket === "ndx2") {
+  report("Nasdaq 100 CFD, the MetaQuotes-Demo export", [NASDAQ_METAQUOTES], null);
 } else if (basket === "calibrate") {
   // The US indices from the exchange: the same rule on them is already known from the broker's files.
   report("US indices from the exchange (calibration of the proxy)", ["SPXCASH", "DJICASH", "RUTCASH", "NDXCASH"].map(exchangeIndex), FROM);
 } else if (basket === "world") {
   report("Indices outside the US, from the exchange", ["GER40", "UK100", "JP225", "FRA40", "EU50", "AUS200", "HK50"].map(exchangeIndex), FROM);
 } else {
-  throw new Error("usage: npx tsx research/new-instrument.ts ndx|calibrate|world");
+  throw new Error("usage: npx tsx research/new-instrument.ts ndx|ndx-broker|ndx2|calibrate|world");
 }
