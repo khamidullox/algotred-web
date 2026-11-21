@@ -28,6 +28,17 @@ function firstOfEachType(tfName, list) {
     galleryItems.push({ tfName, c });
   }
 }
+/** For the gallery: when the four points of a harmonic figure shown are also a double top or bottom ("M" or "W"), the trade by that reading goes right under it. */
+function sameDoubles(tfName, breakTrades) {
+  for (let n = galleryItems.length - 1; n >= 0; n--) {
+    const item = galleryItems[n];
+    if (!item.c.pts || item.tfName !== tfName) continue;
+    const twin = breakTrades.find((d) => d.symbol === item.c.symbol && d.type.startsWith("double") && d.fig.swings[5].idx === item.c.pts[3].idx);
+    if (twin === undefined) continue;
+    item.twin = twin.type;
+    galleryItems.splice(n + 1, 0, { tfName, c: twin, twinOf: item.c.type });
+  }
+}
 const ZIGZAG = 2;       // ATR(14) of pullback that confirms a swing
 const NEAR = 0.25;      // "equal" highs or lows: within this share of the figure's height
 const WINDOW = 30;      // bars of the figure's timeframe to wait for the breakout
@@ -353,6 +364,7 @@ function summary(trades) {
 const months = (Date.parse(TO) - Date.parse(FROM)) / (86400e3 * 30.44);
 const TYPES = ["double bottom", "double top", "triple bottom", "triple top", "inverse head and shoulders", "head and shoulders", "bull flag", "bear flag", "ascending triangle", "descending triangle", "symmetrical triangle", "rectangle", "rising wedge", "falling wedge"];
 const totals = new Map();
+let breakNet = []; // the break trades of the timeframe in work, for the gallery
 for (const tfName of TFS) {
   console.log(`\n=== figures on ${tfName}; dev ${FROM} .. ${TO}; "hit" = share of trades that reached the target before the stop; "coin" = what a coin would reach with the same stops and targets ===`);
   console.log(`${pad("figure, entry", 44)} ${lpad("n", 6)} ${lpad("/mo", 6)} ${lpad("R:R", 5)} ${lpad("hit", 5)} ${lpad("coin", 5)} ${lpad("before", 7)} ${lpad("after", 7)} ${lpad("t", 5)} | ${lpad("1st", 7)} | ${lpad("2nd", 7)} | pairs+`);
@@ -370,6 +382,7 @@ for (const tfName of TFS) {
     for (const type of TYPES) row(`${type}, ${mode}`, net.filter((c) => c.type === type), gross.filter((c) => c.type === type));
     for (const c of net) { const key = `${c.type}|${mode}`; if (!totals.has(key)) totals.set(key, { net: [], gross: [] }); totals.get(key).net.push(c); }
     for (const c of gross) { const key = `${c.type}|${mode}`; totals.get(key)?.gross.push(c); }
+    if (mode === "break") breakNet = net;
     if (tfName === "H4" && mode === "break") firstOfEachType(tfName, net);
   }
   row("ALL FIGURES, entry on a touch of the line", PAIRS.flatMap((p) => candidates(p, tfName, "touch", true)), PAIRS.flatMap((p) => candidates(p, tfName, "touch", false)));
@@ -377,7 +390,7 @@ for (const tfName of TFS) {
   for (const share of [0.382, 0.618]) {
     const net = PAIRS.flatMap((p) => harmonics(p, tfName, share, true)), gross = PAIRS.flatMap((p) => harmonics(p, tfName, share, false));
     row(`ALL HARMONIC, target ${share} of AD`, net, gross);
-    if (tfName === "H1" && share === 0.618) firstOfEachType(tfName, net);
+    if (tfName === "H1" && share === 0.618) { firstOfEachType(tfName, net); sameDoubles(tfName, breakNet); }
     for (const type of Object.keys(HARMONIC)) row(`${type}, target ${share} of AD`, net.filter((c) => c.type === type), gross.filter((c) => c.type === type));
   }
 }
@@ -400,7 +413,7 @@ if (galleryFile !== undefined && galleryItems.length > 0) {
   const POINTS = { double: 4, triple: 6, head: 6, flag: 3 };
   const pointsOf = (type) => POINTS[Object.keys(POINTS).find((k) => type.includes(k))] ?? 4;
   const ENDS = { stop: "стоп", target: "цель достигнута", time: "закрыта по сроку" };
-  const cards = galleryItems.map(({ tfName, c }) => {
+  const cards = galleryItems.map(({ tfName, c, twin, twinOf }) => {
     const m = market.get(c.symbol), bars = m.tf[tfName];
     const barAt = (i) => { let lo = 0, hi = bars.length - 1; while (lo < hi) { const mid = (lo + hi) >> 1; if (bars[mid].last < i) lo = mid + 1; else hi = mid; } return lo; };
     const shape = c.fig ? c.fig.swings.slice(-pointsOf(c.type)) : c.pts;
@@ -422,7 +435,8 @@ if (galleryFile !== undefined && galleryItems.length > 0) {
     const hline = (p, cls, label) => `<line x1="${x(entryBar).toFixed(1)}" x2="${W - padR}" y1="${y(p).toFixed(1)}" y2="${y(p).toFixed(1)}" class="${cls}"/><text x="${W - padR + 4}" y="${(y(p) + 4).toFixed(1)}" class="lbl">${label}</text>`;
     const svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${NAMES[c.type]}">${candles}${neck}<polyline points="${poly}" class="fig"/>${dots}<line x1="${x(entryBar).toFixed(1)}" x2="${x(entryBar).toFixed(1)}" y1="12" y2="${H - 12}" class="entry"/>${hline(c.entry, "ent", "вход")}${hline(c.stop, "stp", "стоп")}${hline(c.target, "tp", "цель")}</svg>`;
     const dir = (c.side ? c.side.dir : Math.sign(c.target - c.entry)) > 0 ? "Покупка" : "Продажа";
-    return `<section><h2>${NAMES[c.type]} — ${c.symbol}, ${tfName}, ${c.date}</h2><p>${dir}. Цель в ${c.rr.toFixed(1)} раза ${c.rr >= 1 ? "дальше" : "от"} стопа. Итог: ${ENDS[c.reason]} (${f(c.r, 2)} R после издержек).</p>${svg}</section>`;
+    const also = twin ? ` Точки X, A, B, C здесь же складываются в фигуру «${NAMES[twin].toLowerCase()}»: сделка по ней — на следующем графике.` : twinOf ? ` Это те же четыре точки, что у фигуры «${NAMES[twinOf].toLowerCase()}» на графике выше: одно место, два прочтения.` : "";
+    return `<section><h2>${NAMES[c.type]} — ${c.symbol}, ${tfName}, ${c.date}</h2><p>${dir}. Цель в ${c.rr.toFixed(1)} раза ${c.rr >= 1 ? "дальше" : "от"} стопа. Итог: ${ENDS[c.reason]} (${f(c.r, 2)} R после издержек).${also}</p>${svg}</section>`;
   }).join("\n");
   const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Фигуры по правилам источников</title><style>
 :root{--bg:#fff;--fg:#1c1c1c;--mut:#6b6b6b;--up:#1a8f5a;--dn:#c0392b;--fig:#2456c7;--line:#888;--neck:#b8860b}
@@ -431,7 +445,7 @@ body{background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif;mar
 h1{font-size:22px}h2{font-size:17px;margin:28px 0 4px}p{margin:4px 0 8px;color:var(--mut)}svg{width:100%;height:auto;display:block}
 .up{stroke:var(--up)}.dn{stroke:var(--dn)}.upf{fill:var(--up)}.dnf{fill:var(--dn)}.fig{fill:none;stroke:var(--fig);stroke-width:2}.dot{fill:var(--fig)}
 .neck{stroke:var(--neck);stroke-width:2}.entry{stroke:var(--line);stroke-dasharray:4 4}.ent{stroke:var(--fg)}.stp{stroke:var(--dn);stroke-dasharray:6 3}.tp{stroke:var(--up);stroke-dasharray:6 3}.lbl{fill:var(--fg);font-size:12px}
-</style></head><body><h1>Фигуры по правилам, в которых сходятся источники</h1><p>Синяя ломаная — точки разворота, из которых сложена фигура. Жёлтая линия — линия шеи или граница: закрытие свечи за ней и есть вход (вертикальный пунктир). Стоп — за фигурой, цель — высота фигуры от линии пробоя (у флага — длина древка). У гармонических фигур вход стоит лимитным ордером в точке D. Для каждого вида взят первый по порядку пример с 2019 года на EURUSD, без отбора по результату.</p>${cards}</body></html>`;
+</style></head><body><h1>Фигуры по правилам, в которых сходятся источники</h1><p>Синяя ломаная — точки разворота, из которых сложена фигура. Жёлтая линия — линия шеи или граница: закрытие свечи за ней и есть вход (вертикальный пунктир). Стоп — за фигурой, цель — высота фигуры от линии пробоя (у флага — длина древка). У гармонических фигур вход стоит лимитным ордером в точке D. Для каждого вида взят первый по порядку пример с 2019 года на EURUSD, без отбора по результату. Одни и те же точки бывают сразу двумя фигурами: если у гармонической фигуры точки X, A, B, C складываются ещё и в двойную вершину или дно (буква «М» или «W»), сделка по ней показана сразу под ней.</p>${cards}</body></html>`;
   mkdirSync(path.dirname(galleryFile), { recursive: true });
   writeFileSync(galleryFile, html);
   console.log(`\ngallery of ${galleryItems.length} figures written to ${galleryFile}`);
