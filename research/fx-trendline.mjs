@@ -372,13 +372,16 @@ if (example) {
   // One pair, one window: what the detector marks there. No results are counted.
   const m = build(example.pair, shift(example.from, -60), example.to), all = candidates(example.pair, m, true);
   console.log(`What the detector marks on ${example.pair} from ${example.from} to ${example.to} (a window outside dev: for the shape only)`);
-  const digits = m.s.digits === 3 ? 3 : 5, cards = [];
+  const digits = m.s.digits === 3 ? 3 : 5, cards = [], only = process.argv[7] ? process.argv[7].split(",") : null;
   for (const [key, title] of [["E1|line|now|1", "Вход 1: пробой линии, вход сразу"], ["E1|line|retest|1", "Вход 1: пробой линии, вход на ретесте"], ["E1|line+structure|retest|1", "Вход 1: пробой и слом структуры, вход на ретесте"], ["E2|1", "Вход 2: отбой от линии и слом на M15"]]) {
     console.log(`--- ${key}`);
+    const drawn = new Set();
     for (const c of all.get(key) ?? []) {
       const b = m.m15[c.t.e];
+      // The page shows only the days asked for, one picture for every moment of entry.
+      const show = only === null || only.includes(c.t.date), moment = `${c.t.e}`;
+      if (show && !drawn.has(moment)) { drawn.add(moment); cards.push(card(m, c, `${title} — ${example.pair}, ${c.t.date}`, "")); }
       console.log(`  ${c.t.date} ${String(b.hour).padStart(2, "0")}:${String(b.minute).padStart(2, "0")} server  ${c.t.dir > 0 ? "buy " : "sell"} ${c.t.entry.toFixed(digits)}  stop ${c.t.stop.toFixed(digits)}  take ${c.t.take.toFixed(digits)}  touches ${c.L.touches}  ${c.L.global ? "global" : "local "} line from ${m.h1[c.L.i].date}`);
-      cards.push(card(m, c, `${title} — ${example.pair}, ${c.t.date}`, ""));
     }
   }
   if (galleryFile !== undefined) writePage(`Что программа отмечает на ${example.pair}, ${example.from} — ${example.to}`, `${LEAD} Это окно вне старых данных: оно открыто только чтобы сверить форму с примерами из видео.`, cards);
@@ -414,13 +417,24 @@ if (example) {
     row("control: the same break on M15 anywhere, H1 swings rising", `C2|trend|${take}`);
     row("control: the same break on M15 anywhere, no condition", `C2|any|${take}`);
   }
+  // Added after the 28 rows above were read: the same three entries split by the kind of the line, and the size of a stop.
+  head("Split by the kind of the line (take 1:1)");
+  for (const [label, key] of [["the line is broken, at once", "E1|line|now|1"], ["the line is broken, on the retest", "E1|line|retest|1"], ["touch of the line and a break on M15", "E2|1"]]) {
+    row(`${label}, global line`, key, (c) => c.L.global);
+    row(`${label}, local line`, key, (c) => !c.L.global);
+  }
   console.log(`\nRows counted: ${rows}`);
+  for (const key of ["E1|line|now|1", "E1|line|retest|1", "E2|1", "C2|trend|1"]) {
+    const tr = sequence(net.get(key) ?? []), gr = sequence(gross.get(key) ?? []);
+    const pips = tr.map((c) => Math.abs(c.t.entry - c.t.stop) / markets.get(c.symbol).s.pip).sort((x, y) => x - y);
+    console.log(`${pad(key, 20)} median stop ${pips[Math.floor(pips.length / 2)].toFixed(0)} pips; costs take ${(mean(gr.map((c) => c.t.r)) - mean(tr.map((c) => c.t.r))).toFixed(3)} R a trade; buys ${f(mean(tr.filter((c) => c.t.dir > 0).map((c) => c.t.r)))} R, sells ${f(mean(tr.filter((c) => c.t.dir < 0).map((c) => c.t.r)))} R`);
+  }
   const reasons = {};
   for (const c of sequence(net.get("E1|line|retest|1") ?? [])) reasons[c.t.reason] = (reasons[c.t.reason] ?? 0) + 1;
   console.log(`how the trades of "the line is broken, on the retest, take 1:1" ended: ${Object.entries(reasons).map(([k, v]) => `${k} ${v}`).join(", ")}`);
   if (galleryFile !== undefined) {
     // The first cases in time order on EURUSD from 2019, with no selection by result.
-    const firstOf = (key, n) => (net.get(key) ?? []).filter((c) => c.symbol === "EURUSD" && c.t.date >= "2019-01-01").slice(0, n);
+    const firstOf = (key, n) => { const seen = new Set(); return (net.get(key) ?? []).filter((c) => c.symbol === "EURUSD" && c.t.date >= "2019-01-01" && !seen.has(c.t.e) && seen.add(c.t.e)).slice(0, n); }; // one picture for every moment of entry
     const cards = [
       ...firstOf("E1|line|retest|1", 6).map((c) => card(markets.get(c.symbol), c, `Вход 1: пробой линии, вход на ретесте — ${c.symbol}, ${c.t.date}`)),
       ...firstOf("E2|1", 6).map((c) => card(markets.get(c.symbol), c, `Вход 2: отбой от линии и слом на M15 — ${c.symbol}, ${c.t.date}`)),
