@@ -139,6 +139,9 @@ function trade(symbol, cross, d, dir) {
   const gross = dir * (d.close / d.open - 1) * 1e4;
   return { pair: symbol, cross, date: d.date, day: d.day, dir, gross, net: gross - ((dir > 0 ? d.openSpread : d.closeSpread) + d.fixed) * 1e4 };
 }
+/** Stage 1 on test was run once on 2026-11-22: only the rule that passed it is read on the holdout (TZ 17.33). */
+const PASSED_TEST = ["RateShockConfirmed"];
+const allowed = (name) => datasetArg !== "holdout" || PASSED_TEST.includes(name);
 const rules = { RateShockNextDay: [], RateShockConfirmed: [], control: [] };
 for (const { P, base, quote, cross } of PAIRS) {
   const n = P.list.length;
@@ -160,7 +163,7 @@ for (const { P, base, quote, cross } of PAIRS) {
     if (!Number.isFinite(change) || change === 0 || nx < FROZEN.minUsual || sx === 0) continue;
     if (Math.abs(change) / Math.sqrt(sx / nx) < FROZEN.shock) continue;
     const dir = Math.sign(change);
-    rules.RateShockNextDay.push(trade(P.symbol, cross, next, dir));
+    if (allowed("RateShockNextDay")) rules.RateShockNextDay.push(trade(P.symbol, cross, next, dir));
     if (dir * ownSize >= FROZEN.confirmedBy) rules.RateShockConfirmed.push(trade(P.symbol, cross, next, dir));
   }
 }
@@ -176,6 +179,7 @@ const controlGross = mean(rules.control.map((r) => r.gross));
 console.log(`\ncontrol (the day after the pair's own large day, no yields): trades ${rules.control.length}, before costs ${f(controlGross)} bp (t ${f(tByWeeks(rules.control, (r) => r.gross), 1)}), after costs ${f(mean(rules.control.map((r) => r.net)))} bp`);
 const saved = { control: { trades: rules.control.length, grossMean: controlGross } };
 for (const name of ["RateShockNextDay", "RateShockConfirmed"]) {
+  if (!allowed(name)) { console.log(""); console.log(`=== ${name}: did not pass stage 1 on test, not run on the holdout ===`); continue; }
   const recs = rules[name], gross = mean(recs.map((r) => r.gross)), net = mean(recs.map((r) => r.net));
   const names = [...new Set(recs.map((r) => r.pair))], years = [...new Set(recs.map((r) => r.date.slice(0, 4)))].sort();
   console.log(`\n=== ${name} ===`);
