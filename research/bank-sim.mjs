@@ -68,6 +68,9 @@ const RULES = [
   { name: "FedMorningAfter", kind: "after", banks: [BANKS.fed], pairs: () => PAIRS, devOnly: true },
 ];
 
+/** Stage 1 on test was run once on 2026-11-22: only the rules that passed it are read on the holdout (TZ 17.32). */
+const PASSED_TEST = ["FedEveDollar", "RbaEveAud"];
+
 const mean = (xs) => (xs.length === 0 ? NaN : xs.reduce((a, b) => a + b, 0) / xs.length);
 function stat(xs) {
   const m = mean(xs);
@@ -249,6 +252,7 @@ console.log(`${datasetArg} ${FROM} .. ${TO}; basis points of the price; one numb
 const saved = {};
 for (const rule of RULES) {
   if (rule.devOnly && datasetArg !== "dev") { console.log(""); console.log(`=== ${rule.name}: measured on dev only, not frozen, not run on ${datasetArg} ===`); continue; }
+  if (datasetArg === "holdout" && !PASSED_TEST.includes(rule.name)) { console.log(""); console.log(`=== ${rule.name}: did not pass stage 1 on test, not run on the holdout ===`); continue; }
   const own = run(rule, 0);
   const control = FROZEN.controlShiftDays.flatMap((d) => run(rule, d));
   const netOf = (e) => mean(e.trades.map((t) => t.net)), grossOf = (e) => mean(e.trades.map((t) => t.gross));
