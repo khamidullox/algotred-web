@@ -1,0 +1,1622 @@
+{
+ "dataset": "holdout",
+ "from": "2024-11-16",
+ "to": "2026-10-29",
+ "frozen": {
+  "eveHours": 24,
+  "beforeMinutes": 15,
+  "fadeBackHours": 6,
+  "fadeOutMinutes": 120,
+  "afterEntryMinute": 120,
+  "afterHoldMinutes": 240,
+  "stopUsualDays": 2,
+  "usualDays": 20,
+  "controlShiftDays": [
+   7,
+   14
+  ]
+ },
+ "rules": {
+  "FedEveDollar": {
+   "decisions": [
+    {
+     "date": "2024-12-18",
+     "bank": "Fed",
+     "trades": [
+      {
+       "pair": "EURUSD",
+       "side": 1,
+       "entryDate": "2024-12-17",
+       "entryMinute": 1245,
+       "exitDate": "2024-12-18",
+       "gross": -9.998476422640316,
+       "net": -12.80490591909727,
+       "r": -0.11168059385642354,
+       "stopped": false
+      },
+      {
+       "pair": "GBPUSD",
+       "side": 1,
+       "entryDate": "2024-12-17",
+       "entryMinute": 1245,
+       "exitDate": "2024-12-18",
+       "gross": -8.723123349680673,
+       "net": -11.40528731296314,
+       "r": -0.12541481216456388,
+       "stopped": false
+      },
+      {
+       "pair": "USDJPY",
+       "side": -1,
+       "entryDate": "2024-12-17",
+       "entryMinute": 1245,
+       "exitDate": "2024-12-18",
+       "gross": -38.19435376459273,
+       "net": -42.14283251939245,
+       "r": -0.3282751915840605,
+       "stopped": false
+      },
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2024-12-17",
+       "entryMinute": 1245,
+       "exitDate": "2024-12-18",
+       "gross": -55.358410220014406,
+       "net": -59.438530084378556,
+       "r": -0.5152115795186083,
+       "stopped": false
+      },
+      {
+       "pair": "NZDUSD",
+       "side": 1,
+       "entryDate": "2024-12-17",
+       "entryMinute": 1245,
+       "exitDate": "2024-12-18",
+       "gross": -63.02739868736365,
+       "net": -66.61390943501262,
+       "r": -0.5682010422342663,
+       "stopped": false
+      },
+      {
+       "pair": "USDCAD",
+       "side": -1,
+       "entryDate": "2024-12-17",
+       "entryMinute": 1245,
+       "exitDate": "2024-12-18",
+       "gross": -14.538642733823032,
+       "net": -16.779179685040344,
+       "r": -0.22888069166965333,
+       "stopped": false
+      },
+      {
+       "pair": "USDCHF",
+       "side": -1,
+       "entryDate": "2024-12-17",
+       "entryMinute": 1245,
+       "exitDate": "2024-12-18",
+       "gross": -3.9262317149775807,
+       "net": -8.420317688234372,
+       "r": -0.09516941217173165,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2025-01-29",
+     "bank": "Fed",
+     "trades": [
+      {
+       "pair": "EURUSD",
+       "side": 1,
+       "entryDate": "2025-01-28",
+       "entryMinute": 1245,
+       "exitDate": "2025-01-29",
+       "gross": -3.836820043547485,
+       "net": -6.66378905163285,
+       "r": -0.06146028606492788,
+       "stopped": false
+      },
+      {
+       "pair": "GBPUSD",
+       "side": 1,
+       "entryDate": "2025-01-28",
+       "entryMinute": 1245,
+       "exitDate": "2025-01-29",
+       "gross": 15.53082426027398,
+       "net": 12.864833546580915,
+       "r": 0.10740892009612447,
+       "stopped": false
+      },
+      {
+       "pair": "USDJPY",
+       "side": -1,
+       "entryDate": "2025-01-28",
+       "entryMinute": 1245,
+       "exitDate": "2025-01-29",
+       "gross": 33.548851498129196,
+       "net": 29.651106083780657,
+       "r": 0.26202314703746804,
+       "stopped": false
+      },
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2025-01-28",
+       "entryMinute": 1245,
+       "exitDate": "2025-01-29",
+       "gross": -23.05180252289167,
+       "net": -27.193122878914096,
+       "r": -0.21684759891959096,
+       "stopped": false
+      },
+      {
+       "pair": "NZDUSD",
+       "side": 1,
+       "entryDate": "2025-01-28",
+       "entryMinute": 1245,
+       "exitDate": "2025-01-29",
+       "gross": -16.24580610983634,
+       "net": -19.89336923892153,
+       "r": -0.15930921501110126,
+       "stopped": false
+      },
+      {
+       "pair": "USDCAD",
+       "side": -1,
+       "entryDate": "2025-01-28",
+       "entryMinute": 1245,
+       "exitDate": "2025-01-29",
+       "gross": -13.607709183814892,
+       "net": -15.83788219611603,
+       "r": -0.16027499720726276,
+       "stopped": false
+      },
+      {
+       "pair": "USDCHF",
+       "side": -1,
+       "entryDate": "2025-01-28",
+       "entryMinute": 1245,
+       "exitDate": "2025-01-29",
+       "gross": -24.873421919564596,
+       "net": -29.201846160649396,
+       "r": -0.335561690180095,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2025-03-19",
+     "bank": "Fed",
+     "trades": [
+      {
+       "pair": "EURUSD",
+       "side": 1,
+       "entryDate": "2025-03-18",
+       "entryMinute": 1185,
+       "exitDate": "2025-03-19",
+       "gross": -72.18369379494365,
+       "net": -74.87660243231582,
+       "r": -0.7865328165024928,
+       "stopped": false
+      },
+      {
+       "pair": "GBPUSD",
+       "side": 1,
+       "entryDate": "2025-03-18",
+       "entryMinute": 1185,
+       "exitDate": "2025-03-19",
+       "gross": -30.917131320899156,
+       "net": -33.46510286483243,
+       "r": -0.4253275918383581,
+       "stopped": false
+      },
+      {
+       "pair": "USDJPY",
+       "side": -1,
+       "entryDate": "2025-03-18",
+       "entryMinute": 1185,
+       "exitDate": "2025-03-19",
+       "gross": -40.98195990196437,
+       "net": -45.01375306360302,
+       "r": -0.3507314975859338,
+       "stopped": false
+      },
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2025-03-18",
+       "entryMinute": 1185,
+       "exitDate": "2025-03-19",
+       "gross": -60.681328701010436,
+       "net": -64.27661882378848,
+       "r": -0.6044718650857569,
+       "stopped": false
+      },
+      {
+       "pair": "NZDUSD",
+       "side": 1,
+       "entryDate": "2025-03-18",
+       "entryMinute": 1185,
+       "exitDate": "2025-03-19",
+       "gross": -70.9902538803989,
+       "net": -74.54082369321314,
+       "r": -0.7568538755442895,
+       "stopped": false
+      },
+      {
+       "pair": "USDCAD",
+       "side": -1,
+       "entryDate": "2025-03-18",
+       "entryMinute": 1185,
+       "exitDate": "2025-03-19",
+       "gross": -28.734627673332977,
+       "net": -30.975530821556163,
+       "r": -0.3328057235688475,
+       "stopped": false
+      },
+      {
+       "pair": "USDCHF",
+       "side": -1,
+       "entryDate": "2025-03-18",
+       "entryMinute": 1185,
+       "exitDate": "2025-03-19",
+       "gross": -42.20275572588654,
+       "net": -46.6464823432792,
+       "r": -0.5210703279635273,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2025-05-07",
+     "bank": "Fed",
+     "trades": [
+      {
+       "pair": "EURUSD",
+       "side": 1,
+       "entryDate": "2025-05-06",
+       "entryMinute": 1245,
+       "exitDate": "2025-05-07",
+       "gross": -24.196457638601974,
+       "net": -27.053575356567165,
+       "r": -0.1849510061060362,
+       "stopped": false
+      },
+      {
+       "pair": "GBPUSD",
+       "side": 1,
+       "entryDate": "2025-05-06",
+       "entryMinute": 1245,
+       "exitDate": "2025-05-07",
+       "gross": -25.963919878486493,
+       "net": -29.415549918815767,
+       "r": -0.2776311299278326,
+       "stopped": false
+      },
+      {
+       "pair": "USDJPY",
+       "side": -1,
+       "entryDate": "2025-05-06",
+       "entryMinute": 1245,
+       "exitDate": "2025-05-07",
+       "gross": -64.96011897663173,
+       "net": -69.71170825470624,
+       "r": -0.4396734939672647,
+       "stopped": false
+      },
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2025-05-06",
+       "entryMinute": 1245,
+       "exitDate": "2025-05-07",
+       "gross": -55.029749976877675,
+       "net": -60.5589296174116,
+       "r": -0.3265266245715203,
+       "stopped": false
+      },
+      {
+       "pair": "NZDUSD",
+       "side": 1,
+       "entryDate": "2025-05-06",
+       "entryMinute": 1245,
+       "exitDate": "2025-05-07",
+       "gross": -56.00653409564313,
+       "net": -61.11648859033558,
+       "r": -0.3637984599940622,
+       "stopped": false
+      },
+      {
+       "pair": "USDCAD",
+       "side": -1,
+       "entryDate": "2025-05-06",
+       "entryMinute": 1245,
+       "exitDate": "2025-05-07",
+       "gross": -16.618287373005263,
+       "net": -19.788534107402413,
+       "r": -0.21364944757059165,
+       "stopped": false
+      },
+      {
+       "pair": "USDCHF",
+       "side": -1,
+       "entryDate": "2025-05-06",
+       "entryMinute": 1245,
+       "exitDate": "2025-05-07",
+       "gross": 7.906003697577594,
+       "net": 2.362420939962732,
+       "r": 0.013006381547196596,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2025-06-18",
+     "bank": "Fed",
+     "trades": [
+      {
+       "pair": "EURUSD",
+       "side": 1,
+       "entryDate": "2025-06-17",
+       "entryMinute": 1245,
+       "exitDate": "2025-06-18",
+       "gross": 1.3053921397976855,
+       "net": -1.5205207644378589,
+       "r": -0.015091017744580146,
+       "stopped": false
+      },
+      {
+       "pair": "GBPUSD",
+       "side": 1,
+       "entryDate": "2025-06-17",
+       "entryMinute": 1245,
+       "exitDate": "2025-06-18",
+       "gross": -14.490815052612033,
+       "net": -17.918821710954933,
+       "r": -0.21188019020323481,
+       "stopped": false
+      },
+      {
+       "pair": "USDJPY",
+       "side": -1,
+       "entryDate": "2025-06-17",
+       "entryMinute": 1245,
+       "exitDate": "2025-06-18",
+       "gross": 26.03718219828113,
+       "net": 21.358934955258864,
+       "r": 0.18227102720135702,
+       "stopped": false
+      },
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2025-06-17",
+       "entryMinute": 1245,
+       "exitDate": "2025-06-18",
+       "gross": 43.040942889759016,
+       "net": 37.50732775909353,
+       "r": 0.3167925868452241,
+       "stopped": false
+      },
+      {
+       "pair": "NZDUSD",
+       "side": 1,
+       "entryDate": "2025-06-17",
+       "entryMinute": 1245,
+       "exitDate": "2025-06-18",
+       "gross": 9.292909178407344,
+       "net": 4.371625097492358,
+       "r": 0.034236458078110016,
+       "stopped": false
+      },
+      {
+       "pair": "USDCAD",
+       "side": -1,
+       "entryDate": "2025-06-17",
+       "entryMinute": 1245,
+       "exitDate": "2025-06-18",
+       "gross": -40.80524303338551,
+       "net": -44.00346330830663,
+       "r": -0.7170987444270288,
+       "stopped": false
+      },
+      {
+       "pair": "USDCHF",
+       "side": -1,
+       "entryDate": "2025-06-17",
+       "entryMinute": 1245,
+       "exitDate": "2025-06-18",
+       "gross": -33.117862793920104,
+       "net": -38.70237957977097,
+       "r": -0.36666132253941086,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2025-07-30",
+     "bank": "Fed",
+     "trades": [
+      {
+       "pair": "EURUSD",
+       "side": 1,
+       "entryDate": "2025-07-29",
+       "entryMinute": 1245,
+       "exitDate": "2025-07-30",
+       "gross": -62.699182485796676,
+       "net": -65.51129278093228,
+       "r": -0.7785508003121736,
+       "stopped": false
+      },
+      {
+       "pair": "GBPUSD",
+       "side": 1,
+       "entryDate": "2025-07-29",
+       "entryMinute": 1245,
+       "exitDate": "2025-07-30",
+       "gross": -42.277909792134274,
+       "net": -45.73585301679854,
+       "r": -0.5768368985095295,
+       "stopped": false
+      },
+      {
+       "pair": "USDJPY",
+       "side": -1,
+       "entryDate": "2025-07-29",
+       "entryMinute": 1245,
+       "exitDate": "2025-07-30",
+       "gross": -32.33804031475815,
+       "net": -36.996418562038336,
+       "r": -0.3383968909278786,
+       "stopped": false
+      },
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2025-07-29",
+       "entryMinute": 1245,
+       "exitDate": "2025-07-30",
+       "gross": -97.95120290643747,
+       "net": -103.4597490618193,
+       "r": -1.0241248161266778,
+       "stopped": true
+      },
+      {
+       "pair": "NZDUSD",
+       "side": 1,
+       "entryDate": "2025-07-29",
+       "entryMinute": 1245,
+       "exitDate": "2025-07-30",
+       "gross": -58.450065504384405,
+       "net": -63.43111122308537,
+       "r": -0.6182596036202058,
+       "stopped": false
+      },
+      {
+       "pair": "USDCAD",
+       "side": -1,
+       "entryDate": "2025-07-29",
+       "entryMinute": 1245,
+       "exitDate": "2025-07-30",
+       "gross": -23.307315302232237,
+       "net": -26.478907242692774,
+       "r": -0.4698630075835727,
+       "stopped": false
+      },
+      {
+       "pair": "USDCHF",
+       "side": -1,
+       "entryDate": "2025-07-29",
+       "entryMinute": 1245,
+       "exitDate": "2025-07-30",
+       "gross": -55.71825672590085,
+       "net": -61.359932492803246,
+       "r": -0.6737431833620164,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2025-09-17",
+     "bank": "Fed",
+     "trades": [
+      {
+       "pair": "EURUSD",
+       "side": 1,
+       "entryDate": "2025-09-16",
+       "entryMinute": 1245,
+       "exitDate": "2025-09-17",
+       "gross": -13.904103817309776,
+       "net": -16.38762956096802,
+       "r": -0.20561458344963002,
+       "stopped": false
+      },
+      {
+       "pair": "GBPUSD",
+       "side": 1,
+       "entryDate": "2025-09-16",
+       "entryMinute": 1245,
+       "exitDate": "2025-09-17",
+       "gross": 6.517568141541496,
+       "net": 4.09142170862907,
+       "r": 0.05269021973108613,
+       "stopped": false
+      },
+      {
+       "pair": "USDJPY",
+       "side": -1,
+       "entryDate": "2025-09-16",
+       "entryMinute": 1245,
+       "exitDate": "2025-09-17",
+       "gross": 4.235464500660036,
+       "net": 0.13650423888001176,
+       "r": 0.0014877693826461378,
+       "stopped": false
+      },
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2025-09-16",
+       "entryMinute": 1245,
+       "exitDate": "2025-09-17",
+       "gross": -27.52389642638201,
+       "net": -30.944937248509344,
+       "r": -0.33893612449464494,
+       "stopped": false
+      },
+      {
+       "pair": "NZDUSD",
+       "side": 1,
+       "entryDate": "2025-09-16",
+       "entryMinute": 1245,
+       "exitDate": "2025-09-17",
+       "gross": -25.552809138885703,
+       "net": -28.83561861179687,
+       "r": -0.2829710864584099,
+       "stopped": false
+      },
+      {
+       "pair": "USDCAD",
+       "side": -1,
+       "entryDate": "2025-09-16",
+       "entryMinute": 1245,
+       "exitDate": "2025-09-17",
+       "gross": -13.970138828254036,
+       "net": -16.27379434791269,
+       "r": -0.3180526562114918,
+       "stopped": false
+      },
+      {
+       "pair": "USDCHF",
+       "side": -1,
+       "entryDate": "2025-09-16",
+       "entryMinute": 1245,
+       "exitDate": "2025-09-17",
+       "gross": -8.900869742128108,
+       "net": -13.520049844869943,
+       "r": -0.17976016462607092,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2025-10-29",
+     "bank": "Fed",
+     "trades": [
+      {
+       "pair": "EURUSD",
+       "side": 1,
+       "entryDate": "2025-10-28",
+       "entryMinute": 1185,
+       "exitDate": "2025-10-29",
+       "gross": -14.147060840934985,
+       "net": -16.673983126413443,
+       "r": -0.24246188128174245,
+       "stopped": false
+      },
+      {
+       "pair": "GBPUSD",
+       "side": 1,
+       "entryDate": "2025-10-28",
+       "entryMinute": 1185,
+       "exitDate": "2025-10-29",
+       "gross": -43.45501238881942,
+       "net": -45.9500982821319,
+       "r": -0.5987287971558807,
+       "stopped": false
+      },
+      {
+       "pair": "USDJPY",
+       "side": -1,
+       "entryDate": "2025-10-28",
+       "entryMinute": 1185,
+       "exitDate": "2025-10-29",
+       "gross": -7.688668086112441,
+       "net": -11.658323476066869,
+       "r": -0.12908968435350887,
+       "stopped": false
+      },
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2025-10-28",
+       "entryMinute": 1185,
+       "exitDate": "2025-10-29",
+       "gross": 32.48626165103122,
+       "net": 29.01448219327802,
+       "r": 0.29121224590562655,
+       "stopped": false
+      },
+      {
+       "pair": "NZDUSD",
+       "side": 1,
+       "entryDate": "2025-10-28",
+       "entryMinute": 1185,
+       "exitDate": "2025-10-29",
+       "gross": 7.7788725820681695,
+       "net": 4.381035108645483,
+       "r": 0.04601866930297456,
+       "stopped": false
+      },
+      {
+       "pair": "USDCAD",
+       "side": -1,
+       "entryDate": "2025-10-28",
+       "entryMinute": 1185,
+       "exitDate": "2025-10-29",
+       "gross": 34.200903420089915,
+       "net": 31.920635262064483,
+       "r": 0.7544397845676765,
+       "stopped": false
+      },
+      {
+       "pair": "USDCHF",
+       "side": -1,
+       "entryDate": "2025-10-28",
+       "entryMinute": 1185,
+       "exitDate": "2025-10-29",
+       "gross": -47.27625723326775,
+       "net": -51.86198736778482,
+       "r": -0.6818591687224772,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2025-12-10",
+     "bank": "Fed",
+     "trades": [
+      {
+       "pair": "EURUSD",
+       "side": 1,
+       "entryDate": "2025-12-09",
+       "entryMinute": 1245,
+       "exitDate": "2025-12-10",
+       "gross": 30.201862017930978,
+       "net": 27.66593815071657,
+       "r": 0.47681677200509537,
+       "stopped": false
+      },
+      {
+       "pair": "GBPUSD",
+       "side": 1,
+       "entryDate": "2025-12-09",
+       "entryMinute": 1245,
+       "exitDate": "2025-12-10",
+       "gross": 32.04067511056237,
+       "net": 29.548873311471517,
+       "r": 0.3527543318591084,
+       "stopped": false
+      },
+      {
+       "pair": "USDJPY",
+       "side": -1,
+       "entryDate": "2025-12-09",
+       "entryMinute": 1245,
+       "exitDate": "2025-12-10",
+       "gross": 29.634067068583747,
+       "net": 25.763221892244186,
+       "r": 0.32064330983866307,
+       "stopped": false
+      },
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2025-12-09",
+       "entryMinute": 1245,
+       "exitDate": "2025-12-10",
+       "gross": 9.042954031651018,
+       "net": 5.596081386586443,
+       "r": 0.06379532906168825,
+       "stopped": false
+      },
+      {
+       "pair": "NZDUSD",
+       "side": 1,
+       "entryDate": "2025-12-09",
+       "entryMinute": 1245,
+       "exitDate": "2025-12-10",
+       "gross": 13.849935944046655,
+       "net": 10.446980713964093,
+       "r": 0.10878322688352725,
+       "stopped": false
+      },
+      {
+       "pair": "USDCAD",
+       "side": -1,
+       "entryDate": "2025-12-09",
+       "entryMinute": 1245,
+       "exitDate": "2025-12-10",
+       "gross": 14.794714317674165,
+       "net": 12.50410210518016,
+       "r": 0.25904411921887793,
+       "stopped": false
+      },
+      {
+       "pair": "USDCHF",
+       "side": -1,
+       "entryDate": "2025-12-09",
+       "entryMinute": 1245,
+       "exitDate": "2025-12-10",
+       "gross": 47.48973948840035,
+       "net": 42.96799340351363,
+       "r": 0.5831618728729628,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2026-01-28",
+     "bank": "Fed",
+     "trades": [
+      {
+       "pair": "EURUSD",
+       "side": 1,
+       "entryDate": "2026-01-27",
+       "entryMinute": 1245,
+       "exitDate": "2026-01-28",
+       "gross": -46.673179203299554,
+       "net": -49.13391612186716,
+       "r": -0.7881372400351042,
+       "stopped": false
+      },
+      {
+       "pair": "GBPUSD",
+       "side": 1,
+       "entryDate": "2026-01-27",
+       "entryMinute": 1245,
+       "exitDate": "2026-01-28",
+       "gross": -7.257157371458413,
+       "net": -9.661453608621759,
+       "r": -0.14270909668621026,
+       "stopped": false
+      },
+      {
+       "pair": "USDJPY",
+       "side": -1,
+       "entryDate": "2026-01-27",
+       "entryMinute": 1245,
+       "exitDate": "2026-01-28",
+       "gross": -76.14794832677373,
+       "net": -80.10567934053105,
+       "r": -0.8012844153449736,
+       "stopped": false
+      },
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2026-01-27",
+       "entryMinute": 1245,
+       "exitDate": "2026-01-28",
+       "gross": 27.246784162448378,
+       "net": 23.96713177405215,
+       "r": 0.28831312184360164,
+       "stopped": false
+      },
+      {
+       "pair": "NZDUSD",
+       "side": 1,
+       "entryDate": "2026-01-27",
+       "entryMinute": 1245,
+       "exitDate": "2026-01-28",
+       "gross": 18.95860704129367,
+       "net": 15.689719113269376,
+       "r": 0.18235721981872077,
+       "stopped": false
+      },
+      {
+       "pair": "USDCAD",
+       "side": -1,
+       "entryDate": "2026-01-27",
+       "entryMinute": 1245,
+       "exitDate": "2026-01-28",
+       "gross": 8.815362237925656,
+       "net": 6.496274040227884,
+       "r": 0.12809172361514515,
+       "stopped": false
+      },
+      {
+       "pair": "USDCHF",
+       "side": -1,
+       "entryDate": "2026-01-27",
+       "entryMinute": 1245,
+       "exitDate": "2026-01-28",
+       "gross": -61.30088299357041,
+       "net": -66.02091664384274,
+       "r": -0.7688451215307698,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2026-03-18",
+     "bank": "Fed",
+     "trades": [
+      {
+       "pair": "EURUSD",
+       "side": 1,
+       "entryDate": "2026-03-17",
+       "entryMinute": 1185,
+       "exitDate": "2026-03-18",
+       "gross": -20.892028954098418,
+       "net": -23.446924710675276,
+       "r": -0.2710152588262543,
+       "stopped": false
+      },
+      {
+       "pair": "GBPUSD",
+       "side": 1,
+       "entryDate": "2026-03-17",
+       "entryMinute": 1185,
+       "exitDate": "2026-03-18",
+       "gross": -10.111299189597812,
+       "net": -12.592686909237129,
+       "r": -0.13140523978144505,
+       "stopped": false
+      },
+      {
+       "pair": "USDJPY",
+       "side": -1,
+       "entryDate": "2026-03-17",
+       "entryMinute": 1185,
+       "exitDate": "2026-03-18",
+       "gross": -28.433753129599925,
+       "net": -32.26366770252839,
+       "r": -0.3462654020422093,
+       "stopped": false
+      },
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2026-03-17",
+       "entryMinute": 1185,
+       "exitDate": "2026-03-18",
+       "gross": -41.7797909603729,
+       "net": -44.996975537018905,
+       "r": -0.3063789097432333,
+       "stopped": false
+      },
+      {
+       "pair": "NZDUSD",
+       "side": 1,
+       "entryDate": "2026-03-17",
+       "entryMinute": 1185,
+       "exitDate": "2026-03-18",
+       "gross": -41.79389638525551,
+       "net": -45.14698657477852,
+       "r": -0.3517468222907735,
+       "stopped": false
+      },
+      {
+       "pair": "USDCAD",
+       "side": -1,
+       "entryDate": "2026-03-17",
+       "entryMinute": 1185,
+       "exitDate": "2026-03-18",
+       "gross": -0.5841078847268931,
+       "net": -2.8933251071464645,
+       "r": -0.04179172858173127,
+       "stopped": false
+      },
+      {
+       "pair": "USDCHF",
+       "side": -1,
+       "entryDate": "2026-03-17",
+       "entryMinute": 1185,
+       "exitDate": "2026-03-18",
+       "gross": -65.6076028383263,
+       "net": -70.23412232314774,
+       "r": -0.740394745818474,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2026-04-29",
+     "bank": "Fed",
+     "trades": [
+      {
+       "pair": "EURUSD",
+       "side": 1,
+       "entryDate": "2026-04-28",
+       "entryMinute": 1245,
+       "exitDate": "2026-04-29",
+       "gross": -24.845250800426626,
+       "net": -27.36153681963622,
+       "r": -0.3894256812925298,
+       "stopped": false
+      },
+      {
+       "pair": "GBPUSD",
+       "side": 1,
+       "entryDate": "2026-04-28",
+       "entryMinute": 1245,
+       "exitDate": "2026-04-29",
+       "gross": -24.046109339508686,
+       "net": -26.497332731563283,
+       "r": -0.3268643411241167,
+       "stopped": false
+      },
+      {
+       "pair": "USDJPY",
+       "side": -1,
+       "entryDate": "2026-04-28",
+       "entryMinute": 1245,
+       "exitDate": "2026-04-29",
+       "gross": -45.815497044868756,
+       "net": -49.63389657355293,
+       "r": -0.7074216789874328,
+       "stopped": false
+      },
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2026-04-28",
+       "entryMinute": 1245,
+       "exitDate": "2026-04-29",
+       "gross": -76.00645915696894,
+       "net": -79.19009967147467,
+       "r": -0.7163763355879809,
+       "stopped": false
+      },
+      {
+       "pair": "NZDUSD",
+       "side": 1,
+       "entryDate": "2026-04-28",
+       "entryMinute": 1245,
+       "exitDate": "2026-04-29",
+       "gross": -87.8280812027522,
+       "net": -91.16727257283678,
+       "r": -0.8206860943450885,
+       "stopped": false
+      },
+      {
+       "pair": "USDCAD",
+       "side": -1,
+       "entryDate": "2026-04-28",
+       "entryMinute": 1245,
+       "exitDate": "2026-04-29",
+       "gross": -1.608657502194421,
+       "net": -3.920239836208803,
+       "r": -0.07945807869748096,
+       "stopped": false
+      },
+      {
+       "pair": "USDCHF",
+       "side": -1,
+       "entryDate": "2026-04-28",
+       "entryMinute": 1245,
+       "exitDate": "2026-04-29",
+       "gross": -17.864382728563026,
+       "net": -22.4694607743773,
+       "r": -0.2600544484862784,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2026-06-17",
+     "bank": "Fed",
+     "trades": [
+      {
+       "pair": "EURUSD",
+       "side": 1,
+       "entryDate": "2026-06-16",
+       "entryMinute": 1245,
+       "exitDate": "2026-06-17",
+       "gross": -16.792249730892543,
+       "net": -19.33020452098876,
+       "r": -0.3132283977627705,
+       "stopped": false
+      },
+      {
+       "pair": "GBPUSD",
+       "side": 1,
+       "entryDate": "2026-06-16",
+       "entryMinute": 1245,
+       "exitDate": "2026-06-17",
+       "gross": -23.45896914587,
+       "net": -25.926256916671573,
+       "r": -0.37787251615196366,
+       "stopped": false
+      },
+      {
+       "pair": "USDJPY",
+       "side": -1,
+       "entryDate": "2026-06-16",
+       "entryMinute": 1245,
+       "exitDate": "2026-06-17",
+       "gross": 13.339317326152457,
+       "net": 9.537926047821085,
+       "r": 0.2519838286078407,
+       "stopped": false
+      },
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2026-06-16",
+       "entryMinute": 1245,
+       "exitDate": "2026-06-17",
+       "gross": 3.818143251079736,
+       "net": 0.5840345047029486,
+       "r": 0.006075048091703986,
+       "stopped": false
+      },
+      {
+       "pair": "NZDUSD",
+       "side": 1,
+       "entryDate": "2026-06-16",
+       "entryMinute": 1245,
+       "exitDate": "2026-06-17",
+       "gross": -34.26065506372295,
+       "net": -37.62781793887762,
+       "r": -0.3740898637692875,
+       "stopped": false
+      },
+      {
+       "pair": "USDCAD",
+       "side": -1,
+       "entryDate": "2026-06-16",
+       "entryMinute": 1245,
+       "exitDate": "2026-06-17",
+       "gross": -25.72567851476958,
+       "net": -28.00066172161695,
+       "r": -0.6004261751298158,
+       "stopped": false
+      },
+      {
+       "pair": "USDCHF",
+       "side": -1,
+       "entryDate": "2026-06-16",
+       "entryMinute": 1245,
+       "exitDate": "2026-06-17",
+       "gross": -2.3964482114931576,
+       "net": -6.98399172594789,
+       "r": -0.09081723505151566,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2026-07-29",
+     "bank": "Fed",
+     "trades": [
+      {
+       "pair": "EURUSD",
+       "side": 1,
+       "entryDate": "2026-07-28",
+       "entryMinute": 1245,
+       "exitDate": "2026-07-29",
+       "gross": 3.2478647483780994,
+       "net": 0.6608088061029832,
+       "r": 0.010344573203437466,
+       "stopped": false
+      },
+      {
+       "pair": "GBPUSD",
+       "side": 1,
+       "entryDate": "2026-07-28",
+       "entryMinute": 1245,
+       "exitDate": "2026-07-29",
+       "gross": 6.242525891439364,
+       "net": 3.750780315736151,
+       "r": 0.05399302545261219,
+       "stopped": false
+      },
+      {
+       "pair": "USDJPY",
+       "side": -1,
+       "entryDate": "2026-07-28",
+       "entryMinute": 1245,
+       "exitDate": "2026-07-29",
+       "gross": -1.8316360172907131,
+       "net": -5.569404351968134,
+       "r": -0.0946736632043654,
+       "stopped": false
+      },
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2026-07-28",
+       "entryMinute": 1245,
+       "exitDate": "2026-07-29",
+       "gross": -60.206422018348356,
+       "net": -63.48480504587179,
+       "r": -0.7307357536441942,
+       "stopped": false
+      },
+      {
+       "pair": "NZDUSD",
+       "side": 1,
+       "entryDate": "2026-07-28",
+       "entryMinute": 1245,
+       "exitDate": "2026-07-29",
+       "gross": -20.907127429804465,
+       "net": -24.30343844492376,
+       "r": -0.2487398961294333,
+       "stopped": false
+      },
+      {
+       "pair": "USDCAD",
+       "side": -1,
+       "entryDate": "2026-07-28",
+       "entryMinute": 1245,
+       "exitDate": "2026-07-29",
+       "gross": 8.791021814496181,
+       "net": 6.52848858230823,
+       "r": 0.1235096669658422,
+       "stopped": false
+      },
+      {
+       "pair": "USDCHF",
+       "side": -1,
+       "entryDate": "2026-07-28",
+       "entryMinute": 1245,
+       "exitDate": "2026-07-29",
+       "gross": -19.67349332811966,
+       "net": -24.139806442152963,
+       "r": -0.29944075074365123,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2026-09-16",
+     "bank": "Fed",
+     "trades": [
+      {
+       "pair": "EURUSD",
+       "side": 1,
+       "entryDate": "2026-09-15",
+       "entryMinute": 1245,
+       "exitDate": "2026-09-16",
+       "gross": -4.939683860232594,
+       "net": -7.493760399333426,
+       "r": -0.14927041177070544,
+       "stopped": false
+      },
+      {
+       "pair": "GBPUSD",
+       "side": 1,
+       "entryDate": "2026-09-15",
+       "entryMinute": 1245,
+       "exitDate": "2026-09-16",
+       "gross": -25.522506547562447,
+       "net": -27.98053166942443,
+       "r": -0.5009075907389676,
+       "stopped": false
+      },
+      {
+       "pair": "USDJPY",
+       "side": -1,
+       "entryDate": "2026-09-15",
+       "entryMinute": 1245,
+       "exitDate": "2026-09-16",
+       "gross": 0.12890750886300675,
+       "net": -3.777989042862069,
+       "r": -0.03798744157645116,
+       "stopped": false
+      },
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2026-09-15",
+       "entryMinute": 1245,
+       "exitDate": "2026-09-16",
+       "gross": -0.14024852037747174,
+       "net": -3.3477321814253314,
+       "r": -0.04778346492584394,
+       "stopped": false
+      },
+      {
+       "pair": "NZDUSD",
+       "side": 1,
+       "entryDate": "2026-09-15",
+       "entryMinute": 1245,
+       "exitDate": "2026-09-16",
+       "gross": -4.167028387879277,
+       "net": -7.5798506814816555,
+       "r": -0.08210262718931981,
+       "stopped": false
+      },
+      {
+       "pair": "USDCAD",
+       "side": -1,
+       "entryDate": "2026-09-15",
+       "entryMinute": 1245,
+       "exitDate": "2026-09-16",
+       "gross": -21.275831087150774,
+       "net": -23.560017969449476,
+       "r": -0.44968993417958897,
+       "stopped": false
+      },
+      {
+       "pair": "USDCHF",
+       "side": -1,
+       "entryDate": "2026-09-15",
+       "entryMinute": 1245,
+       "exitDate": "2026-09-16",
+       "gross": 0.8547947881942398,
+       "net": -3.608988777765743,
+       "r": -0.04435890666353184,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2026-10-28",
+     "bank": "Fed",
+     "trades": [
+      {
+       "pair": "EURUSD",
+       "side": 1,
+       "entryDate": "2026-10-27",
+       "entryMinute": 1185,
+       "exitDate": "2026-10-28",
+       "gross": 0.08976983015407615,
+       "net": -3.8127042263625883,
+       "r": -0.05034791448976777,
+       "stopped": false
+      },
+      {
+       "pair": "GBPUSD",
+       "side": 1,
+       "entryDate": "2026-10-27",
+       "entryMinute": 1185,
+       "exitDate": "2026-10-28",
+       "gross": -7.0592829570881275,
+       "net": -10.89908229321341,
+       "r": -0.16426989699604058,
+       "stopped": false
+      },
+      {
+       "pair": "USDJPY",
+       "side": -1,
+       "entryDate": "2026-10-27",
+       "entryMinute": 1185,
+       "exitDate": "2026-10-28",
+       "gross": -23.43863827846398,
+       "net": -28.17736904452892,
+       "r": -0.35497092456881674,
+       "stopped": false
+      },
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2026-10-27",
+       "entryMinute": 1185,
+       "exitDate": "2026-10-28",
+       "gross": 8.107185526539787,
+       "net": 1.7252659725767614,
+       "r": 0.020213521244576493,
+       "stopped": false
+      },
+      {
+       "pair": "NZDUSD",
+       "side": 1,
+       "entryDate": "2026-10-27",
+       "entryMinute": 1185,
+       "exitDate": "2026-10-28",
+       "gross": -80.3632303285157,
+       "net": -91.03611708245802,
+       "r": -1.0150202961128814,
+       "stopped": true
+      },
+      {
+       "pair": "USDCAD",
+       "side": -1,
+       "entryDate": "2026-10-27",
+       "entryMinute": 1185,
+       "exitDate": "2026-10-28",
+       "gross": 4.913445037063451,
+       "net": 1.2198040318738206,
+       "r": 0.02210632005759517,
+       "stopped": false
+      },
+      {
+       "pair": "USDCHF",
+       "side": -1,
+       "entryDate": "2026-10-27",
+       "entryMinute": 1185,
+       "exitDate": "2026-10-28",
+       "gross": -13.88553489495272,
+       "net": -19.876768896401558,
+       "r": -0.23908980645336192,
+       "stopped": false
+      }
+     ]
+    }
+   ],
+   "controlWindows": 29,
+   "netMean": -22.24999629959849,
+   "grossMean": -18.656925196950787,
+   "controlGrossMean": 3.6259897329074837,
+   "passed": false
+  },
+  "RbaEveAud": {
+   "decisions": [
+    {
+     "date": "2024-12-10",
+     "bank": "Reserve Bank of Australia",
+     "trades": [
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2024-12-09",
+       "entryMinute": 315,
+       "exitDate": "2024-12-10",
+       "gross": 31.43867112960172,
+       "net": 27.392310820532852,
+       "r": 0.24313222672238854,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2025-02-18",
+     "bank": "Reserve Bank of Australia",
+     "trades": [
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2025-02-17",
+       "entryMinute": 315,
+       "exitDate": "2025-02-18",
+       "gross": -34.878240377062056,
+       "net": -39.09976433621484,
+       "r": -0.3165566753959759,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2025-04-01",
+     "bank": "Reserve Bank of Australia",
+     "trades": [
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2025-03-31",
+       "entryMinute": 375,
+       "exitDate": "2025-04-01",
+       "gross": -46.97003471005792,
+       "net": -52.681272489887824,
+       "r": -0.49238601861765674,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2025-05-20",
+     "bank": "Reserve Bank of Australia",
+     "trades": [
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2025-05-19",
+       "entryMinute": 435,
+       "exitDate": "2025-05-20",
+       "gross": 51.346078813888475,
+       "net": 45.747951619194794,
+       "r": 0.352137673762908,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2025-07-08",
+     "bank": "Reserve Bank of Australia",
+     "trades": [
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2025-07-07",
+       "entryMinute": 435,
+       "exitDate": "2025-07-08",
+       "gross": -7.213789081087309,
+       "net": -12.719291513822528,
+       "r": -0.11054144137075732,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2025-08-12",
+     "bank": "Reserve Bank of Australia",
+     "trades": [
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2025-08-11",
+       "entryMinute": 435,
+       "exitDate": "2025-08-12",
+       "gross": -16.393944965373773,
+       "net": -21.889746889747094,
+       "r": -0.2120322949501888,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2025-09-30",
+     "bank": "Reserve Bank of Australia",
+     "trades": [
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2025-09-29",
+       "entryMinute": 435,
+       "exitDate": "2025-09-30",
+       "gross": 29.69889885621175,
+       "net": 26.215751077536556,
+       "r": 0.29107856273899385,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2025-11-04",
+     "bank": "Reserve Bank of Australia",
+     "trades": [
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2025-11-03",
+       "entryMinute": 315,
+       "exitDate": "2025-11-04",
+       "gross": -22.766165505439304,
+       "net": -26.718921892189226,
+       "r": -0.25993499709534096,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2025-12-09",
+     "bank": "Reserve Bank of Australia",
+     "trades": [
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2025-12-08",
+       "entryMinute": 315,
+       "exitDate": "2025-12-09",
+       "gross": -24.080066220181127,
+       "net": -27.97351192715696,
+       "r": -0.31784310571650926,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2026-02-03",
+     "bank": "Reserve Bank of Australia",
+     "trades": [
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2026-02-02",
+       "entryMinute": 315,
+       "exitDate": "2026-02-03",
+       "gross": 22.028968813890057,
+       "net": 18.30420134189408,
+       "r": 0.16018182376700846,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2026-03-17",
+     "bank": "Reserve Bank of Australia",
+     "trades": [
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2026-03-16",
+       "entryMinute": 315,
+       "exitDate": "2026-03-17",
+       "gross": 104.62311414339018,
+       "net": 101.35881588901137,
+       "r": 0.6977504151499466,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2026-05-05",
+     "bank": "Reserve Bank of Australia",
+     "trades": [
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2026-05-04",
+       "entryMinute": 435,
+       "exitDate": "2026-05-05",
+       "gross": -76.69583789856073,
+       "net": -79.86768927783808,
+       "r": -0.797029076760297,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2026-06-16",
+     "bank": "Reserve Bank of Australia",
+     "trades": [
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2026-06-15",
+       "entryMinute": 435,
+       "exitDate": "2026-06-16",
+       "gross": -33.6215177713728,
+       "net": -36.8522913488158,
+       "r": -0.3778593475985412,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2026-08-11",
+     "bank": "Reserve Bank of Australia",
+     "trades": [
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2026-08-10",
+       "entryMinute": 435,
+       "exitDate": "2026-08-11",
+       "gross": 0.9917542716275325,
+       "net": -2.248448612961095,
+       "r": -0.02605827902825554,
+       "stopped": false
+      }
+     ]
+    },
+    {
+     "date": "2026-09-29",
+     "bank": "Reserve Bank of Australia",
+     "trades": [
+      {
+       "pair": "AUDUSD",
+       "side": 1,
+       "entryDate": "2026-09-28",
+       "entryMinute": 435,
+       "exitDate": "2026-09-29",
+       "gross": -25.471000056919422,
+       "net": -28.72531162843792,
+       "r": -0.3846977693433937,
+       "stopped": false
+      }
+     ]
+    }
+   ],
+   "controlWindows": 31,
+   "netMean": -7.317147944593447,
+   "grossMean": -3.197540703829648,
+   "controlGrossMean": -8.38758530618691,
+   "passed": false
+  }
+ }
+}
