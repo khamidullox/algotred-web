@@ -55,6 +55,8 @@ const DEV_FROM = "2015-02-02", DEV_TO = "2021-12-08";
 const REVERSAL_HOLD = 21;
 const CANDIDATES = [["63", [63]], ["63 + 126", [63, 126]], ["63 + 126 + 252", [63, 126, 252]], ["21 + 63 + 126 + 252", [21, 63, 126, 252]]];
 // Frozen on 2026-11-23 after the dev run and before test: the candidate with the highest t after the costs of the orders.
+// Both of its runs are spent (TZ 17.40): stage 1 on test passed in form (+2.7% a year, t 0.8), stage 2 on the holdout
+// did not (-3.8% a year). The rule is closed; a changed rule is a new name.
 const FROZEN = { name: "CurrencyReversalNoSwap", looks: [63] };
 const HOUR = 10; // the server hour of the daily ranking
 const LOOK_DAYS = [1, 5, 21, 63, 252], HOLD_DAYS = [1, 5, 21];
