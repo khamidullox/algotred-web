@@ -43,8 +43,14 @@ const OWN_SWAP = {
 };
 const CROSSES = Object.keys(OWN_SWAP);
 const SPREAD_SHARE = 0.7, CROSS_CLOSED = new Set([22, 23, 0]);
-const FROM = "2015-02-02", TO = "2021-12-08", SPLIT = "2018-07-01";
-const checkMode = process.argv[2] === "check", galleryFile = checkMode ? undefined : process.argv[2];
+const checkMode = process.argv[2] === "check", frozenMode = process.argv[2] === "frozen", galleryFile = checkMode || frozenMode ? undefined : process.argv[2];
+// Every mode but "frozen" reads dev only; "frozen" reads up to the end of the set it is given and counts trades inside it.
+const dataset = frozenMode ? process.argv[3] ?? "dev" : "dev";
+if (dataset === "holdout" && !process.argv.includes("--i-understand-holdout")) throw new Error("the holdout needs --i-understand-holdout");
+const SPANS = { dev: ["2015-02-02", "2021-12-08"], test: [config.datasets.testStart, "2024-11-15"], holdout: [config.datasets.holdoutStart, "2026-10-29"] };
+if (SPANS[dataset] === undefined) throw new Error(`no such set: ${dataset}`);
+const [FROM, TO] = SPANS[dataset];
+const SPLIT = dataset === "dev" ? "2018-07-01" : new Date((Date.parse(FROM) + Date.parse(TO)) / 2).toISOString().slice(0, 10);
 
 const mean = (xs) => (xs.length === 0 ? NaN : xs.reduce((a, b) => a + b, 0) / xs.length);
 const f = (x, d = 3) => (!Number.isFinite(x) ? "  n/a" : (x >= 0 ? "+" : "") + x.toFixed(d));
@@ -74,7 +80,7 @@ function loadM15(symbol) {
     const p = lines[i].split("\t");
     if (p.length < 9) continue;
     const date = p[0].replaceAll(".", "-");
-    if (date > TO) break; // nothing after dev is read
+    if (date > TO) break; // nothing after the end of the set is read
     rows.push({ date, hour: +p[1].slice(0, 2), minute: +p[1].slice(3, 5), o: +p[2], h: +p[3], l: +p[4], c: +p[5], spread: +p[8] });
   }
   return rows;
@@ -308,7 +314,33 @@ h1{font-size:22px}h2{font-size:17px;margin:28px 0 4px}p{margin:4px 0 8px;color:v
 
 // ------------------------------------------------------------------ run
 const SETUPS = [["pin bar at an extreme", pinBar], ["series of inside bars", insideSeries]];
-if (checkMode) {
+// The cell that met the conditions on dev (TZ 17.41), frozen on 2026-11-23 before it is read on test:
+// a pin bar at a 20-day extreme on daily candles, the target two stop distances, for an account without swaps.
+const FROZEN = { name: "PinBarExtremeD1", fn: pinBar, params: { tf: "D1", rr: 2 } };
+if (frozenMode) {
+  // One cell with its control: by group, then on all 28 by year, by side and by instrument, with swaps and without.
+  const cell = FROZEN ?? { name: "the cell under study (not frozen yet)", fn: pinBar, params: { tf: "D1", rr: 2 } };
+  if (FROZEN === null && dataset !== "dev") throw new Error("no cell is frozen yet: test and holdout are read only by the frozen cell");
+  console.log(`${cell.name}: ${dataset} ${FROM} .. ${TO}. R = the stop distance; "before" and "wins" are before costs; t counts weeks.\n${HEAD}`);
+  row("7 dollar pairs", cell.fn, cell.params, DOLLAR);
+  row("21 crosses", cell.fn, cell.params, CROSSES);
+  const everything = [...DOLLAR, ...CROSSES], real = row("all 28", cell.fn, cell.params, everything), flat = (t) => t.r0, done = cells.at(-1);
+  const show = (name, part) => { const w = summary(part), z = summary(part, flat); console.log(`  ${pad(name, 14)} ${lpad(w.n, 4)} trades | with swaps ${lpad(f(w.meanR), 7)} (t ${lpad(f(w.t, 1), 5)}) | no swaps ${lpad(f(z.meanR), 7)} (t ${lpad(f(z.t, 1), 5)})`); };
+  console.log("\nAll 28, after costs:");
+  show("first half", real.net.filter((t) => t.date < SPLIT)); show("second half", real.net.filter((t) => t.date >= SPLIT));
+  for (const y of [...new Set(real.net.map((t) => t.date.slice(0, 4)))].sort()) show(y, real.net.filter((t) => t.date.startsWith(y)));
+  show("buys", real.net.filter((t) => t.dir > 0)); show("sells", real.net.filter((t) => t.dir < 0));
+  const plusFlat = everything.filter((p) => mean(real.net.filter((t) => t.symbol === p).map(flat)) > 0).length;
+  const ends = {};
+  for (const t of real.net) ends[t.reason] = (ends[t.reason] ?? 0) + 1;
+  const curve = (value) => { let run = 0, peak = 0, fall = 0; for (const t of real.net.slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))) { run += value(t); peak = Math.max(peak, run); fall = Math.max(fall, peak - run); } return { run, fall }; };
+  const cs = curve((t) => t.r), cf = curve(flat);
+  console.log(`  instruments above zero: with swaps ${done.plus}/28, no swaps ${plusFlat}/28; ended: ${Object.entries(ends).map(([k, v]) => `${k} ${v}`).join(", ")}`);
+  console.log(`  the sum of R: with swaps ${f(cs.run, 1)} (the deepest fall ${cs.fall.toFixed(1)} R), no swaps ${f(cf.run, 1)} (the deepest fall ${cf.fall.toFixed(1)} R); ${(real.net.length / months).toFixed(1)} trades a month`);
+  const pips = real.net.map((t) => Math.abs(t.entry - t.sl) / market.get(t.symbol).s.pip).sort((a, b) => a - b), heldDays = real.net.map((t) => dayNumber(market.get(t.symbol).m15[t.x].date) - dayNumber(t.date)).sort((a, b) => a - b);
+  console.log(`  median stop ${pips[Math.floor(pips.length / 2)].toFixed(0)} pips; median hold ${heldDays[Math.floor(heldDays.length / 2)]} days`);
+  if (dataset !== "dev") console.log(`\nStage on ${dataset}: after costs on an account without swaps ${done.flat > 0 ? "above" : "not above"} zero (${f(done.flat)} R, t ${f(done.flatT, 1)}); before costs ${f(done.before)} R against ${f(done.control)} R of the control: ${done.flat > 0 && done.before > done.control ? "PASSED" : "NOT PASSED"}.`);
+} else if (checkMode) {
   // The seven dollar pairs on D1 alone: these rows must repeat the lab's (TZ 17.24 after the fix of 17.38).
   console.log(`The seven dollar pairs, D1, dev ${FROM} .. ${TO}: to be compared with the lab.\n${HEAD}`);
   for (const [name, fn] of SETUPS) for (const rr of [1, 2]) row(`${name}, rr ${rr}`, fn, { tf: "D1", rr }, DOLLAR);
