@@ -31,6 +31,7 @@
 // deacotYYYY.zip, unpacked into data/raw/cot/<name>/ (not in git).
 //
 // Usage: node research/fx-cot.mjs
+//        node research/fx-cot.mjs crowd    the small traders of the old report, traded against (TZ 17.42)
 import { readFileSync } from "node:fs";
 
 const config = JSON.parse(readFileSync("config/default.json", "utf8"));
@@ -160,6 +161,8 @@ const tff = readReports("fut_fin_txt_", "FinFutYY.txt", {
 const legacy = readReports("deacot", "annual.txt", {
   date: [1, "asofdateinformyymmdd"], code: [3, "cftccontractmarketcode"], oi: [7, "openinterestall"],
   ncLong: [8, "noncommercialpositionslongall"], ncShort: [9, "noncommercialpositionsshortall"],
+  // Traders too small to be reported one by one: the "crowd" of the futures market (TZ 17.42).
+  nrLong: [15, "nonreportablepositionslongall"], nrShort: [16, "nonreportablepositionsshortall"],
 });
 
 // ------------------------------------------------------------------ the rules
@@ -167,7 +170,7 @@ const GROUPS = { lev: "leveraged funds", am: "asset managers", nc: "non-commerci
 const KINDS = { level: "follow the side they hold", change: "follow the change of the week", extreme: "against a 3-year extreme" };
 /** The net position of a group as a share of the open interest, week by week: code -> [{ week, date, net }]. */
 function netSeries(group) {
-  const src = group === "nc" ? legacy : tff;
+  const src = group === "nc" || group === "nr" ? legacy : tff;
   const out = new Map();
   for (const code of codes) {
     const rows = [...src.get(code).entries()].sort((a, b) => a[0] - b[0]);
@@ -296,6 +299,28 @@ function row(label, pos, days = 7) {
   const above = ctrl.filter((x) => x >= actual).length / ctrl.length;
   const half = (keep) => total(r.all, keep) / Math.max(1, total(r.cnt, keep));
   console.log(`${pad(label, 58)} ${lpad(n, 5)} ${lpad((r.entries / months).toFixed(1), 5)} ${lpad((r.longForeign * 100).toFixed(0) + "%", 5)} ${lpad(f(actual), 7)} ${lpad(f(r.pips, 1), 6)} ${lpad(f(tOf(weekly(r.gross)), 1), 5)} ${lpad(f(total(r.net) / n), 7)} ${lpad(f(total(r.all) / n), 7)} ${lpad(f(tOf(weekly(r.all)), 1), 5)} | ${lpad(f(half((d) => d < SPLIT)), 7)} ${lpad(f(half((d) => d >= SPLIT)), 7)} | ${r.perPair.filter((x) => x > 0).length}/${PAIRS.length} | ${lpad(f(cm), 7)} ${lpad(csd.toFixed(3), 6)} ${lpad(f((actual - cm) / csd, 1), 5)} ${lpad((above * 100).toFixed(0) + "%", 5)}`);
+}
+
+// ------------------------------------------------------------------ the crowd (TZ 17.42)
+// The small traders of the old report, traded against: the side they hold, their change of the week, their
+// three-year extreme. The same weeks, costs and control as above; one more column: t after costs without swaps.
+if (process.argv[2] === "crowd") {
+  const flip = (pos) => new Map([...pos].map(([symbol, ps]) => [symbol, ps.map((x) => -x)]));
+  const eur = netSeries("nr").get(MARKETS.EURUSD.code);
+  console.log(`small traders (non-reportable) in the old report: ${eur.length} weeks for the euro, ${eur[0].date} .. ${eur[eur.length - 1].date}; last three, net as a share of open interest: ${eur.slice(-3).map((r) => `${r.date} ${f(r.net)}`).join(", ")}`);
+  console.log(`\n=== against the crowd, a week held from Tuesday; dev ${FROM} .. ${TO}; result of a pair-week in daily ATRs; t by weeks ===`);
+  console.log(`${pad("rule", 44)} ${lpad("n", 5)} ${lpad("in/mo", 5)} ${lpad("long", 5)} | ${lpad("before", 7)} ${lpad("pips", 6)} ${lpad("t", 5)} | ${lpad("no swaps", 8)} ${lpad("t", 5)} | ${lpad("+swaps", 7)} ${lpad("t", 5)} | ${lpad("halves, no swaps", 16)} | pairs+ | ${lpad("control z", 9)} ${lpad("above", 5)}`);
+  for (const [label, pos] of [["against the side the crowd holds", flip(positions("nr", "level"))], ["against the crowd's change of the week", flip(positions("nr", "change"))], ["against a 3-year extreme of the crowd", positions("nr", "extreme")]]) {
+    const r = evaluate(pos), n = Math.max(1, total(r.cnt)), weekly = (arr) => liveWeeks.map((w) => arr[w]), actual = total(r.gross) / n;
+    const ctrl = [];
+    for (let k = MIN_SHIFT; k <= W - MIN_SHIFT; k++) { const c = evaluate(pos, k); ctrl.push(total(c.gross) / Math.max(1, total(c.cnt))); }
+    const cm = mean(ctrl), csd = Math.sqrt(mean(ctrl.map((x) => (x - cm) ** 2)));
+    const half = (keep) => total(r.net, keep) / Math.max(1, total(r.cnt, keep));
+    console.log(`${pad(label, 44)} ${lpad(n, 5)} ${lpad((r.entries / months).toFixed(1), 5)} ${lpad((r.longForeign * 100).toFixed(0) + "%", 5)} | ${lpad(f(actual), 7)} ${lpad(f(r.pips, 1), 6)} ${lpad(f(tOf(weekly(r.gross)), 1), 5)} | ${lpad(f(total(r.net) / n), 8)} ${lpad(f(tOf(weekly(r.net)), 1), 5)} | ${lpad(f(total(r.all) / n), 7)} ${lpad(f(tOf(weekly(r.all)), 1), 5)} | ${lpad(f(half((d) => d < SPLIT)), 7)} ${lpad(f(half((d) => d >= SPLIT)), 8)} | ${r.perPair.filter((x) => x > 0).length}/${PAIRS.length}    | ${lpad(f((actual - cm) / csd, 1), 9)} ${lpad((ctrl.filter((x) => x >= actual).length / ctrl.length * 100).toFixed(0) + "%", 5)}`);
+  }
+  console.log(`\n"n" pair-weeks in a position; "in/mo" new positions a month; "long" share of pair-weeks long the currency against the dollar; "before" and "pips" before any costs;`);
+  console.log(`"no swaps" after spread, slippage and commission; "+swaps" after swaps too; "control z": the rule against the same positions shifted in time, in their standard deviations; "above": the share of shifts not below the rule.`);
+  process.exit(0);
 }
 
 // ------------------------------------------------------------------ the run
