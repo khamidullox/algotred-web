@@ -137,7 +137,9 @@ function execute(symbol, orders, costs = true) {
       if (hits.length > 1) { cancelled = true; break; }
       if (hits.length === 1) { fill = hits[0]; break; }
     }
-    if (fill === null) { free = Math.min(i, lastTry) + (cancelled ? 1 : 0); continue; }
+    // The next order may stand only from the bar after the last bar of this one. Until 2026-11-23 it could begin on
+    // that very bar, and whether the old order or trade ends there depends on the path inside the bar (TZ 17.38).
+    if (fill === null) { free = Math.min(i, lastTry) + 1; continue; }
     const { leg, price: entry } = fill;
     const dir = leg.dir;
     const dayInfo = day.get(m15[i].date);
@@ -166,7 +168,7 @@ function execute(symbol, orders, costs = true) {
     if (costs) for (let k = i + 1; k <= j; k++) if (m15[k].date !== m15[k - 1].date) swap += (dir > 0 ? s.swapLong : s.swapShort) * (s.swapRef === null ? 1 : entry / s.swapRef) * (weekday(m15[k - 1].date) === 3 ? 3 : 1);
     const commission = !costs ? 0 : s.base ? (s.commission / s.contract) * entry : s.commission / s.contract;
     trades.push({ symbol, date: m15[i].date, dir, r: (dir * (exit - entry) + swap - commission) / dist, reason, bars: j - i });
-    free = j;
+    free = reason === "time" ? j : j + 1; // an exit by time is at the open of its bar: that bar is free
   }
   return trades;
 }

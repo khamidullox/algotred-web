@@ -309,12 +309,16 @@ function candidates(symbol, m, costs) {
 }
 
 // ------------------------------------------------------------------ counting
-/** One position per pair: candidates in time order, a new one only after the previous trade is closed. */
+/**
+ * One position per pair: candidates in time order, a new one only on a bar after the bar on which the previous
+ * trade was closed. Until 2026-11-23 a new trade could begin on the very bar of that exit, which let the future
+ * in (TZ 17.38); the numbers of TZ 17.35 were recounted with this rule.
+ */
 function sequence(cands) {
   const trades = [], free = new Map();
   for (const c of cands) {
     if (c.t.e < (free.get(c.symbol) ?? 0)) continue;
-    free.set(c.symbol, c.t.x);
+    free.set(c.symbol, c.t.reason === "time" ? c.t.x : c.t.x + 1); // an exit by time is at the open of its bar: that bar is free
     trades.push(c);
   }
   return trades;

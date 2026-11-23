@@ -338,11 +338,16 @@ function harmonics(symbol, tfName, share, costs) {
 }
 
 // ------------------------------------------------------------------ counting
+/**
+ * One position per pair: a new trade only on a bar after the bar on which the previous one was closed. Until
+ * 2026-11-23 it could begin on the very bar of that exit, which let the future in (TZ 17.38); the numbers of
+ * TZ 17.26 were recounted with this rule.
+ */
 function sequence(cands) {
   const trades = [], free = new Map();
   for (const c of cands.slice().sort((a, b) => a.e - b.e)) {
     if (c.e < (free.get(c.symbol) ?? 0)) continue;
-    free.set(c.symbol, c.x);
+    free.set(c.symbol, c.reason === "time" ? c.x : c.x + 1); // an exit by time is at the open of its bar: that bar is free
     trades.push(c);
   }
   return trades;

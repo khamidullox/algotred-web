@@ -403,12 +403,18 @@ function candidates(symbol, m, costs) {
 }
 
 // ------------------------------------------------------------------ counting
-/** One position per pair: candidates in time order, a new one only after the previous trade is closed. */
+/**
+ * One position per pair: candidates in time order, a new one only on a bar after the bar on which the previous
+ * trade hit its stop or its take. Until 2026-11-23 a new trade could begin on the very bar of that exit.
+ * That let the future in: whether the old trade ends on a bar depends on where the price goes inside it, so a
+ * candidate was taken more often when its first bar went with the old trade's exit. Entries with a move gained
+ * from it, entries against a move lost (TZ 17.38).
+ */
 function sequence(cands) {
   const trades = [], free = new Map();
   for (const c of cands) {
     if (c.t.e < (free.get(c.symbol) ?? 0)) continue;
-    free.set(c.symbol, c.t.x);
+    free.set(c.symbol, c.t.reason === "time" ? c.t.x : c.t.x + 1); // an exit by time is at the open of its bar: that bar is free
     trades.push(c);
   }
   return trades;
@@ -477,7 +483,7 @@ function cardC(m, c, title) {
   const fr = frame(m, { ...c, before: c.first }, H, [c.level]);
   const { x, y, bw, W, padR } = fr;
   const box = `<rect x="${n1(x(c.first) - bw)}" y="${n1(y(boxTop) - 3)}" width="${n1(x(c.i - 1) - x(c.first) + 2 * bw)}" height="${n1(y(boxBottom) - y(boxTop) + 6)}" class="box"/>`;
-  const level = `<line x1="${n1(x(fr.from))}" x2="${W - padR}" y1="${n1(y(c.level))}" y2="${n1(y(c.level))}" class="fig"/><text x="${W - padR + 4}" y="${n1(y(c.level) + 4)}" class="lbl">уровень</text>`;
+  const level = `<line x1="${n1(x(fr.from))}" x2="${W - padR}" y1="${n1(y(c.level))}" y2="${n1(y(c.level))}" class="fig"/><text x="${n1(x(fr.from) + 2)}" y="${n1(y(c.level) - 5)}" class="lbl">уровень</text>`; // on the left: the right side belongs to the entry, the stop and the take
   const mark = `<line x1="${n1(x(fr.entryBar))}" x2="${n1(x(fr.entryBar))}" y1="12" y2="${H - 12}" class="entry"/>`;
   const svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}">${fr.candles}${box}${level}${mark}${fr.hline(t.entry, "ent", "вход")}${fr.hline(t.stop, "stp", "стоп")}${fr.hline(t.take, "tp", "тейк")}</svg>`;
   const digits = m.s.digits === 3 ? 3 : 5;
