@@ -54,7 +54,8 @@ const DEV_FROM = "2015-02-02", DEV_TO = "2021-12-08";
 // The reversal as one rule (TZ 17.40): sets of lookbacks compared on dev, and the one that is frozen.
 const REVERSAL_HOLD = 21;
 const CANDIDATES = [["63", [63]], ["63 + 126", [63, 126]], ["63 + 126 + 252", [63, 126, 252]], ["21 + 63 + 126 + 252", [21, 63, 126, 252]]];
-const FROZEN = null; // set after the dev run and before test: { name, looks }
+// Frozen on 2026-11-23 after the dev run and before test: the candidate with the highest t after the costs of the orders.
+const FROZEN = { name: "CurrencyReversalNoSwap", looks: [63] };
 const HOUR = 10; // the server hour of the daily ranking
 const LOOK_DAYS = [1, 5, 21, 63, 252], HOLD_DAYS = [1, 5, 21];
 const LOOK_HOURS = [4, 8, 24], HOLD_HOURS = [4, 8];
