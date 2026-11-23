@@ -20,8 +20,9 @@
 // every unit of a pair bought or sold; swaps of the config for every night,
 // three times after Wednesday. Only the change of a position is traded.
 //
-// The control has no idea in it: the same portfolios with the ranking drawn at
-// random, SHUFFLES times. "ctl" is the share of those draws that the real ranking
+// The control has no idea in it: the real ranking with the names of the
+// currencies shuffled, SHUFFLES times, so that it keeps its positions as long as
+// the real one does. "ctl" is the share of those draws that the real ranking
 // beats before costs; 50% is what no edge gives.
 //
 // Usage: node research/fx-strength.mjs            dev, both parts
@@ -40,7 +41,10 @@ const LOOK_DAYS = [1, 5, 21, 63, 252], HOLD_DAYS = [1, 5, 21];
 const LOOK_HOURS = [4, 8, 24], HOLD_HOURS = [4, 8];
 const STARTS = { 4: [2, 6, 10, 14, 18], 8: [2, 10] }; // server hours at which a hold of H hours begins
 const SIDES = [1, 2]; // how many currencies are bought and how many sold
-const SHUFFLES = 500;
+const SHUFFLES = 200;
+/** Cells whose reversed side is printed by year (chosen after the 42 cells were read): lookback in days, hold in days, currencies a side. */
+const DETAILS = [[1, 5, 1], [63, 21, 1], [63, 21, 2], [252, 21, 2]];
+const kept = [];
 const FROM = windowMode ? "2015-01-05" : DEV_FROM, TO = windowMode ? "2015-02-01" : DEV_TO;
 
 const mean = (xs) => (xs.length === 0 ? NaN : xs.reduce((a, b) => a + b, 0) / xs.length);
@@ -158,7 +162,7 @@ function fold(recs, value) {
 }
 const yearsAbove = (recs, value) => { const by = new Map(); for (const r of recs) by.set(r.date.slice(0, 4), (by.get(r.date.slice(0, 4)) ?? 0) + value(r)); return `${[...by.values()].filter((v) => v > 0).length}/${by.size}`; };
 const months = (dayNumber(DEV_TO) - dayNumber(DEV_FROM)) / 30.44;
-const HEAD = `${pad("", 30)} ${lpad("days", 5)} ${lpad("tr/mo", 6)} | ${lpad("gross", 6)} ${lpad("a year", 7)} ${lpad("t", 5)} ${lpad("ctl", 4)} ${lpad("years", 5)} | ${lpad("cost", 6)} ${lpad("swaps", 6)} | ${lpad("net", 6)} ${lpad("a year", 7)} ${lpad("t", 5)} | ${lpad("no swaps", 8)} ${lpad("t", 5)} | ${lpad("halves, net", 15)} | ${lpad("reversed", 8)} ${lpad("no swaps", 8)}`;
+const HEAD = `${pad("", 30)} ${lpad("days", 5)} ${lpad("tr/mo", 6)} | ${lpad("gross", 6)} ${lpad("a year", 7)} ${lpad("t", 5)} ${lpad("ctl", 4)} ${lpad("years", 5)} | ${lpad("cost", 6)} ${lpad("swaps", 6)} | ${lpad("net", 6)} ${lpad("a year", 7)} ${lpad("t", 5)} | ${lpad("no swaps", 8)} ${lpad("t", 5)} | ${lpad("halves, net", 15)} | ${lpad("reversed", 8)} ${lpad("t", 5)} ${lpad("no swaps", 8)} ${lpad("t", 5)}`;
 let cells = 0;
 const table = [];
 function line(label, recs, shuffled) {
@@ -170,7 +174,20 @@ function line(label, recs, shuffled) {
   const perMonth = recs.reduce((n, r) => n + r.n, 0) / months;
   cells++;
   table.push({ label, grossT: g.t, netT: net.t, flatT: flat.t, revT: rev.t, revFlatT: revFlat.t, net: net.bp, flat: flat.bp, rev: rev.bp, revFlat: revFlat.bp });
-  console.log(`${pad(label, 30)} ${lpad(g.days, 5)} ${lpad(perMonth.toFixed(0), 6)} | ${lpad(f(g.bp), 6)} ${lpad(f(g.year, 1) + "%", 7)} ${lpad(f(g.t, 1), 5)} ${lpad((beaten * 100).toFixed(0) + "%", 4)} ${lpad(yearsAbove(recs, (r) => r.gross), 5)} | ${lpad(f(-c.bp), 6)} ${lpad(f(s.bp), 6)} | ${lpad(f(net.bp), 6)} ${lpad(f(net.year, 1) + "%", 7)} ${lpad(f(net.t, 1), 5)} | ${lpad(f(flat.bp), 8)} ${lpad(f(flat.t, 1), 5)} | ${lpad(f(a.bp), 7)} ${lpad(f(b.bp), 7)} | ${lpad(f(rev.bp), 8)} ${lpad(f(revFlat.bp), 8)}`);
+  console.log(`${pad(label, 30)} ${lpad(g.days, 5)} ${lpad(perMonth.toFixed(0), 6)} | ${lpad(f(g.bp), 6)} ${lpad(f(g.year, 1) + "%", 7)} ${lpad(f(g.t, 1), 5)} ${lpad((beaten * 100).toFixed(0) + "%", 4)} ${lpad(yearsAbove(recs, (r) => r.gross), 5)} | ${lpad(f(-c.bp), 6)} ${lpad(f(s.bp), 6)} | ${lpad(f(net.bp), 6)} ${lpad(f(net.year, 1) + "%", 7)} ${lpad(f(net.t, 1), 5)} | ${lpad(f(flat.bp), 8)} ${lpad(f(flat.t, 1), 5)} | ${lpad(f(a.bp), 7)} ${lpad(f(b.bp), 7)} | ${lpad(f(rev.bp), 8)} ${lpad(f(rev.t, 1), 5)} ${lpad(f(revFlat.bp), 8)} ${lpad(f(revFlat.t, 1), 5)}`);
+}
+/** Added after the 42 cells were read: the reversed side of one cell by year and by half, before costs and on an account without swaps. */
+function detail(label, recs) {
+  console.log(`\n--- reversed (the weakest bought against the strongest): ${label} ---`);
+  const show = (name, part) => { const g = fold(part, (r) => -r.gross), n = fold(part, (r) => -r.gross - r.cost), s = fold(part, (r) => -r.gross - r.cost + r.swapRev); console.log(`${pad(name, 12)} ${lpad(g.days, 5)} days | before costs ${lpad(f(g.bp), 6)} bp a day ${lpad(f(g.year, 1) + "%", 7)} a year, t ${lpad(f(g.t, 1), 5)} | no swaps ${lpad(f(n.bp), 6)} ${lpad(f(n.year, 1) + "%", 7)} t ${lpad(f(n.t, 1), 5)} | with swaps ${lpad(f(s.bp), 6)} ${lpad(f(s.year, 1) + "%", 7)} t ${lpad(f(s.t, 1), 5)}`); };
+  show("all", recs); show("first half", recs.filter((r) => r.date < SPLIT)); show("second half", recs.filter((r) => r.date >= SPLIT));
+  for (let y = 2015; y <= 2021; y++) show(String(y), recs.filter((r) => r.date.startsWith(String(y))));
+  // The deepest fall of the running sum on an account without swaps, in percent of the money in the trade.
+  let run = 0, peak = 0, fall = 0;
+  const byDay = new Map();
+  for (const r of recs) byDay.set(r.date, (byDay.get(r.date) ?? 0) + (-r.gross - r.cost));
+  for (const v of byDay.values()) { run += v; peak = Math.max(peak, run); fall = Math.max(fall, peak - run); }
+  console.log(`no swaps: the sum over dev ${f(run * 100, 1)}%, the deepest fall ${(fall * 100).toFixed(1)}% of the money in the trade`);
 }
 
 // ------------------------------------------------------------------ run
@@ -189,30 +206,39 @@ if (windowMode) {
   runHours(4, 4, (t) => sidesOf(strengthHours(t, 4), 1)).slice(0, 6).forEach((r) => console.log(`${r.date} ${String(r.hour).padStart(2, "0")}:00 bought ${CUR[r.W.findIndex((x) => x > 0)]}, sold ${CUR[r.W.findIndex((x) => x < 0)]}; gross ${f(r.gross * 1e4, 1)} bp, cost ${f(r.cost * 1e4, 2)} bp for ${r.n} orders`));
 } else {
   const random = mulberry(20261123);
-  const randomSides = (n) => { const score = new Float64Array(N); for (let i = 0; i < N; i++) score[i] = random(); return sidesOf(score, n); };
+  // The control. First written as a ranking drawn anew every day; that portfolio changes hands daily, so with a hold
+  // of weeks it is an average of many unrelated pairs and scatters far less than the real one, which keeps its pairs:
+  // every real cell looked extreme against it. Corrected after the first run: the real ranking is kept, with its
+  // persistence, and the names of the currencies are shuffled once per draw (the strongest is "EUR" when it is AUD).
+  const randomNames = () => { const p = [...Array(N).keys()]; for (let i = N - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; } return p; };
+  const renamed = (w, p) => { const out = new Float64Array(N); for (let i = 0; i < N; i++) out[p[i]] = w[i]; return out; };
   console.log(`Currency strength, dev ${DEV_FROM} .. ${DEV_TO}. gross, cost, swaps, net: basis points of the money in the trade per day; "a year": percent a year with no leverage; t by weeks.`);
-  console.log(`tr/mo: orders in the dollar pairs a month. ctl: the share of ${SHUFFLES} random rankings that the real one beats before costs (50% = no edge). years: years above zero before costs.`);
+  console.log(`tr/mo: orders in the dollar pairs a month. ctl: the share of ${SHUFFLES} draws of the control (the same ranking with the names of the currencies shuffled) that the real one beats before costs (50% = no edge). years: years above zero before costs.`);
   console.log(`"no swaps": the net on an account without swaps. "reversed": the weakest bought against the strongest, after costs, with swaps and without.`);
   for (const n of SIDES) {
     console.log(`\n=== A. Days: the ${n === 1 ? "strongest against the weakest" : "two strongest against the two weakest"} ===`);
     console.log(HEAD);
     for (const L of LOOK_DAYS) for (const H of HOLD_DAYS) {
-      const recs = runDays(H, (k) => sidesOf(strengthDays(k, L), n), L);
+      const parts = new Map(), part = (k) => { let w = parts.get(k); if (w === undefined) parts.set(k, (w = sidesOf(strengthDays(k, L), n))); return w; };
+      const recs = runDays(H, part, L);
       const shuffled = [];
-      for (let s = 0; s < SHUFFLES; s++) shuffled.push(mean(runDays(H, () => randomSides(n), L).map((r) => r.gross)));
+      for (let s = 0; s < SHUFFLES; s++) { const p = randomNames(); shuffled.push(mean(runDays(H, (k) => renamed(part(k), p), L).map((r) => r.gross))); }
       line(`strength ${L} d, hold ${H} d`, recs, shuffled);
+      if (DETAILS.some((d) => d[0] === L && d[1] === H && d[2] === n)) kept.push([`strength ${L} d, hold ${H} d, ${n} against ${n}`, recs]);
     }
   }
   for (const n of SIDES) {
     console.log(`\n=== B. Inside the day: the ${n === 1 ? "strongest against the weakest" : "two strongest against the two weakest"} ===`);
     console.log(HEAD);
     for (const L of LOOK_HOURS) for (const H of HOLD_HOURS) {
-      const recs = runHours(L, H, (t) => sidesOf(strengthHours(t, L), n));
+      const parts = new Map(), part = (t) => { let w = parts.get(t); if (w === undefined) parts.set(t, (w = sidesOf(strengthHours(t, L), n))); return w; };
+      const recs = runHours(L, H, part);
       const shuffled = [];
-      for (let s = 0; s < 100; s++) shuffled.push(mean(runHours(L, H, () => randomSides(n)).map((r) => r.gross)));
+      for (let s = 0; s < SHUFFLES; s++) { const p = randomNames(); shuffled.push(mean(runHours(L, H, (t) => renamed(part(t), p)).map((r) => r.gross))); }
       line(`strength ${L} h, hold ${H} h`, recs, shuffled);
     }
   }
+  for (const [label, recs] of kept) detail(label, recs);
   const strong = (key) => table.filter((c) => Math.abs(c[key]) >= 2);
   console.log(`\nCells counted: ${cells}. Before costs |t| >= 2: ${strong("grossT").length} (${strong("grossT").filter((c) => c.grossT > 0).length} above zero), expected by chance about ${(cells * 0.05).toFixed(0)}.`);
   console.log(`After costs above zero: with swaps ${table.filter((c) => c.net > 0).length}, without swaps ${table.filter((c) => c.flat > 0).length}; reversed: with swaps ${table.filter((c) => c.rev > 0).length}, without swaps ${table.filter((c) => c.revFlat > 0).length}.`);
