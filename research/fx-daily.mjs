@@ -316,11 +316,14 @@ h1{font-size:22px}h2{font-size:17px;margin:28px 0 4px}p{margin:4px 0 8px;color:v
 const SETUPS = [["pin bar at an extreme", pinBar], ["series of inside bars", insideSeries]];
 // The cell that met the conditions on dev (TZ 17.41), frozen on 2026-11-23 before it is read on test:
 // a pin bar at a 20-day extreme on daily candles, the target two stop distances, for an account without swaps.
+// Its run on test is spent: stage 1 not passed (+0.001 R before costs, -0.028 R after costs without swaps).
+// The rule is closed and the holdout is not read for it; a changed rule is a new name.
 const FROZEN = { name: "PinBarExtremeD1", fn: pinBar, params: { tf: "D1", rr: 2 } };
 if (frozenMode) {
   // One cell with its control: by group, then on all 28 by year, by side and by instrument, with swaps and without.
   const cell = FROZEN ?? { name: "the cell under study (not frozen yet)", fn: pinBar, params: { tf: "D1", rr: 2 } };
   if (FROZEN === null && dataset !== "dev") throw new Error("no cell is frozen yet: test and holdout are read only by the frozen cell");
+  if (dataset === "holdout") throw new Error("PinBarExtremeD1 did not pass stage 1 on test (TZ 17.41): it is not run on the holdout");
   console.log(`${cell.name}: ${dataset} ${FROM} .. ${TO}. R = the stop distance; "before" and "wins" are before costs; t counts weeks.\n${HEAD}`);
   row("7 dollar pairs", cell.fn, cell.params, DOLLAR);
   row("21 crosses", cell.fn, cell.params, CROSSES);
