@@ -25,17 +25,36 @@
 // the real one does. "ctl" is the share of those draws that the real ranking
 // beats before costs; 50% is what no edge gives.
 //
+// The reversed side as one rule for an account without swaps (TZ 17.40): every
+// day the eight currencies are ranked by their change over each of several
+// lookbacks; the weakest gets the largest plus and the strongest the largest
+// minus, in proportion to the rank, one unit bought and one sold in all; the
+// lookbacks are averaged, and the part opened today is held 21 days. On dev the
+// candidates (sets of lookbacks) are compared; the frozen one alone is read on
+// test and on the holdout.
+//
 // Usage: node research/fx-strength.mjs            dev, both parts
 //        node research/fx-strength.mjs window     the first days of January 2015, before dev begins:
 //                                                 every number of a few days, for checking the mechanics
+//        node research/fx-strength.mjs reversal dev|test
+//        node research/fx-strength.mjs reversal holdout --i-understand-holdout
+// The first two read nothing after dev; "reversal" reads up to the end of the set it is given.
 import { readFileSync } from "node:fs";
 
 const config = JSON.parse(readFileSync("config/default.json", "utf8"));
-const windowMode = process.argv[2] === "window";
+const windowMode = process.argv[2] === "window", reversalMode = process.argv[2] === "reversal";
+const dataset = reversalMode ? process.argv[3] ?? "dev" : "dev";
+if (dataset === "holdout" && !process.argv.includes("--i-understand-holdout")) throw new Error("the holdout needs --i-understand-holdout");
+const SPANS = { dev: ["2015-02-02", "2021-12-08"], test: [config.datasets.testStart, "2024-11-15"], holdout: [config.datasets.holdoutStart, "2026-10-29"] };
+if (SPANS[dataset] === undefined) throw new Error(`no such set: ${dataset}`);
 // GBPUSD begins on the first day of dev, so the check of the mechanics before dev runs on the other seven currencies.
 const CUR = ["USD", "EUR", "GBP", "JPY", "AUD", "NZD", "CAD", "CHF"].filter((c) => !windowMode || c !== "GBP"), N = CUR.length;
 const PAIR = { EUR: ["EURUSD", false], GBP: ["GBPUSD", false], JPY: ["USDJPY", true], AUD: ["AUDUSD", false], NZD: ["NZDUSD", false], CAD: ["USDCAD", true], CHF: ["USDCHF", true] };
-const DEV_FROM = "2015-02-02", DEV_TO = "2021-12-08", SPLIT = "2018-07-01";
+const DEV_FROM = "2015-02-02", DEV_TO = "2021-12-08";
+// The reversal as one rule (TZ 17.40): sets of lookbacks compared on dev, and the one that is frozen.
+const REVERSAL_HOLD = 21;
+const CANDIDATES = [["63", [63]], ["63 + 126", [63, 126]], ["63 + 126 + 252", [63, 126, 252]], ["21 + 63 + 126 + 252", [21, 63, 126, 252]]];
+const FROZEN = null; // set after the dev run and before test: { name, looks }
 const HOUR = 10; // the server hour of the daily ranking
 const LOOK_DAYS = [1, 5, 21, 63, 252], HOLD_DAYS = [1, 5, 21];
 const LOOK_HOURS = [4, 8, 24], HOLD_HOURS = [4, 8];
@@ -45,7 +64,9 @@ const SHUFFLES = 200;
 /** Cells whose reversed side is printed by year (chosen after the 42 cells were read): lookback in days, hold in days, currencies a side. */
 const DETAILS = [[1, 5, 1], [63, 21, 1], [63, 21, 2], [252, 21, 2]];
 const kept = [];
-const FROM = windowMode ? "2015-01-05" : DEV_FROM, TO = windowMode ? "2015-02-01" : DEV_TO;
+const FROM = windowMode ? "2015-01-05" : SPANS[dataset][0], TO = windowMode ? "2015-02-01" : SPANS[dataset][1];
+// The two halves of a set: dev is split where the other studies split it, the other sets in the middle.
+const SPLIT = dataset === "dev" ? "2018-07-01" : new Date((Date.parse(FROM) + Date.parse(TO)) / 2).toISOString().slice(0, 10);
 
 const mean = (xs) => (xs.length === 0 ? NaN : xs.reduce((a, b) => a + b, 0) / xs.length);
 const f = (x, d = 2) => (!Number.isFinite(x) ? "n/a" : (x >= 0 ? "+" : "") + x.toFixed(d));
@@ -106,6 +127,14 @@ function sidesOf(score, n) {
   for (let k = 0; k < n; k++) { w[order[k]] += 1 / n; w[order[N - 1 - k]] -= 1 / n; }
   return w;
 }
+/** The reversed side by rank: the weakest gets the largest plus, the strongest the largest minus; one unit bought and one sold in all. */
+function rankWeights(score) {
+  const order = [...score.keys()].sort((a, b) => score[b] - score[a]), w = new Float64Array(N), mid = (N - 1) / 2;
+  let total = 0;
+  for (let r = 0; r < N; r++) total += Math.abs(r - mid);
+  for (let r = 0; r < N; r++) w[order[r]] = (2 * (r - mid)) / total;
+  return w;
+}
 const turnoverCost = (t, w, prev) => { let c = 0; for (let i = 1; i < N; i++) c += Math.abs(w[i] - prev[i]) * oneWay[t][i]; return c; };
 const swapOf = (t, w, nights) => { let s = 0; for (let i = 1; i < N; i++) s += (w[i] > 0 ? w[i] * swapPlus[t][i] : -w[i] * swapMinus[t][i]) * nights; return s; };
 const moveOf = (a, b, w) => { let g = 0; for (let i = 1; i < N; i++) g += w[i] * (xo[b][i] - xo[a][i]); return g; };
@@ -161,7 +190,7 @@ function fold(recs, value) {
   return { days: days.length, bp: perDay * 1e4, year: perDay * 252 * 100, t: mw / (sd / Math.sqrt(w.length)) };
 }
 const yearsAbove = (recs, value) => { const by = new Map(); for (const r of recs) by.set(r.date.slice(0, 4), (by.get(r.date.slice(0, 4)) ?? 0) + value(r)); return `${[...by.values()].filter((v) => v > 0).length}/${by.size}`; };
-const months = (dayNumber(DEV_TO) - dayNumber(DEV_FROM)) / 30.44;
+const months = (dayNumber(TO) - dayNumber(FROM)) / 30.44;
 const HEAD = `${pad("", 30)} ${lpad("days", 5)} ${lpad("tr/mo", 6)} | ${lpad("gross", 6)} ${lpad("a year", 7)} ${lpad("t", 5)} ${lpad("ctl", 4)} ${lpad("years", 5)} | ${lpad("cost", 6)} ${lpad("swaps", 6)} | ${lpad("net", 6)} ${lpad("a year", 7)} ${lpad("t", 5)} | ${lpad("no swaps", 8)} ${lpad("t", 5)} | ${lpad("halves, net", 15)} | ${lpad("reversed", 8)} ${lpad("t", 5)} ${lpad("no swaps", 8)} ${lpad("t", 5)}`;
 let cells = 0;
 const table = [];
@@ -190,8 +219,67 @@ function detail(label, recs) {
   console.log(`no swaps: the sum over dev ${f(run * 100, 1)}%, the deepest fall ${(fall * 100).toFixed(1)}% of the money in the trade`);
 }
 
+// The control. First written as a ranking drawn anew every day; that portfolio changes hands daily, so with a hold
+// of weeks it is an average of many unrelated pairs and scatters far less than the real one, which keeps its pairs:
+// every real cell looked extreme against it. Corrected after the first run: the real ranking is kept, with its
+// persistence, and the names of the currencies are shuffled once per draw (the strongest is "EUR" when it is AUD).
+const random = mulberry(20261123);
+const randomNames = () => { const p = [...Array(N).keys()]; for (let i = N - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; } return p; };
+const renamed = (w, p) => { const out = new Float64Array(N); for (let i = 0; i < N; i++) out[p[i]] = w[i]; return out; };
+
+// ------------------------------------------------------------------ the reversal as one rule (TZ 17.40)
+/** The part opened on day k: rank weights of the reversed side, averaged over the lookbacks. */
+function reversalPart(looks) {
+  const cache = new Map();
+  return (k) => {
+    let w = cache.get(k);
+    if (w === undefined) {
+      w = new Float64Array(N);
+      for (const L of looks) { const r = rankWeights(strengthDays(k, L)); for (let i = 0; i < N; i++) w[i] += r[i] / looks.length; }
+      cache.set(k, w);
+    }
+    return w;
+  };
+}
+const REV_HEAD = `${pad("", 24)} ${lpad("days", 5)} ${lpad("ord/mo", 6)} | ${lpad("before", 6)} ${lpad("a year", 7)} ${lpad("t", 5)} ${lpad("ctl", 4)} | ${lpad("no swaps", 8)} ${lpad("a year", 7)} ${lpad("t", 5)} | ${lpad("halves, a year", 16)} | ${lpad("years+", 6)} ${lpad("fall", 6)} | ${lpad("with swaps", 10)}`;
+/** One line of the reversal: before costs, after the costs of the orders (an account without swaps), and with swaps for the record. */
+function reversalLine(label, looks, first) {
+  const part = reversalPart(looks), recs = runDays(REVERSAL_HOLD, part, first);
+  const shuffled = [];
+  for (let s = 0; s < SHUFFLES; s++) { const p = randomNames(); shuffled.push(mean(runDays(REVERSAL_HOLD, (k) => renamed(part(k), p), first).map((r) => r.gross))); }
+  const net = (r) => r.gross - r.cost;
+  const g = fold(recs, (r) => r.gross), n = fold(recs, net), s = fold(recs, (r) => r.gross - r.cost + r.swap);
+  const a = fold(recs.filter((r) => r.date < SPLIT), net), b = fold(recs.filter((r) => r.date >= SPLIT), net);
+  const beaten = shuffled.filter((x) => x < mean(recs.map((r) => r.gross))).length / shuffled.length;
+  let run = 0, peak = 0, fall = 0;
+  for (const r of recs) { run += net(r); peak = Math.max(peak, run); fall = Math.max(fall, peak - run); }
+  console.log(`${pad(label, 24)} ${lpad(g.days, 5)} ${lpad((recs.reduce((x, r) => x + r.n, 0) / months).toFixed(0), 6)} | ${lpad(f(g.bp), 6)} ${lpad(f(g.year, 1) + "%", 7)} ${lpad(f(g.t, 1), 5)} ${lpad((beaten * 100).toFixed(0) + "%", 4)} | ${lpad(f(n.bp), 8)} ${lpad(f(n.year, 1) + "%", 7)} ${lpad(f(n.t, 1), 5)} | ${lpad(f(a.year, 1) + "%", 7)} ${lpad(f(b.year, 1) + "%", 8)} | ${lpad(yearsAbove(recs, net), 6)} ${lpad((fall * 100).toFixed(1) + "%", 6)} | ${lpad(f(s.year, 1) + "%", 10)}`);
+  return { recs, g, n, s, a, b, beaten, fall, total: run };
+}
+
 // ------------------------------------------------------------------ run
-if (windowMode) {
+if (reversalMode) {
+  const FIRST = 252; // every line begins where the longest lookback has its data, so that the lines are compared on the same days
+  console.log(`The reversal by rank, hold ${REVERSAL_HOLD} days, ${dataset} ${FROM} .. ${TO}. Basis points of the money in the trade per day; "a year": percent a year with no leverage; t by weeks.`);
+  console.log(`"no swaps": after the costs of the orders on an account without swaps. ctl: the share of ${SHUFFLES} draws with the names of the currencies shuffled that the rule beats before costs. fall: the deepest fall of the running sum, no swaps.`);
+  if (dataset === "dev") {
+    console.log(`\n=== one lookback at a time (for the record) ===\n${REV_HEAD}`);
+    for (const L of [21, 63, 126, 252]) reversalLine(`${L} days`, [L], FIRST);
+    console.log(`\n=== the candidates ===\n${REV_HEAD}`);
+    let best = null;
+    for (const [name, looks] of CANDIDATES) { const r = reversalLine(name, looks, FIRST); if (best === null || r.n.t > best.t) best = { name, t: r.n.t }; }
+    console.log(`\nThe highest t after the costs of the orders: "${best.name}" (${f(best.t, 1)}).`);
+  }
+  if (FROZEN === null) {
+    if (dataset !== "dev") throw new Error("no rule is frozen yet: test and holdout are read only by the frozen rule");
+  } else {
+    console.log(`\n=== ${FROZEN.name}: lookbacks ${FROZEN.looks.join(", ")} days ===\n${REV_HEAD}`);
+    const r = reversalLine(FROZEN.name, FROZEN.looks, FIRST), net = (x) => x.gross - x.cost;
+    for (const y of [...new Set(r.recs.map((x) => x.date.slice(0, 4)))]) { const part = r.recs.filter((x) => x.date.startsWith(y)), n = fold(part, net), g = fold(part, (x) => x.gross); console.log(`  ${y}: ${lpad(n.days, 4)} days, before costs ${lpad(f(g.year, 1) + "%", 7)} a year, no swaps ${lpad(f(n.year, 1) + "%", 7)} (t ${f(n.t, 1)})`); }
+    console.log(`  the sum over the set, no swaps: ${f(r.total * 100, 1)}% of the money in the trade; the deepest fall ${(r.fall * 100).toFixed(1)}%`);
+    if (dataset !== "dev") console.log(`\nStage on ${dataset}: after the costs of the orders ${r.n.bp > 0 ? "above" : "not above"} zero (${f(r.n.year, 1)}% a year, t ${f(r.n.t, 1)}); before costs it beats ${(r.beaten * 100).toFixed(0)}% of the control (more than half is needed): ${r.n.bp > 0 && r.beaten > 0.5 ? "PASSED" : "NOT PASSED"}.`);
+  }
+} else if (windowMode) {
   // Every number of a few days before dev begins: the ranking, the two sides, the move of the next day, the costs.
   console.log(`The mechanics on ${FROM} .. ${TO} (before dev begins). Strength over 1 day, hold 1 day, the strongest against the weakest.`);
   const recs = runDays(1, (k) => sidesOf(strengthDays(k, 1), 1), 1);
@@ -205,13 +293,6 @@ if (windowMode) {
   console.log("\nInside the day: strength over 4 hours, hold 4 hours.");
   runHours(4, 4, (t) => sidesOf(strengthHours(t, 4), 1)).slice(0, 6).forEach((r) => console.log(`${r.date} ${String(r.hour).padStart(2, "0")}:00 bought ${CUR[r.W.findIndex((x) => x > 0)]}, sold ${CUR[r.W.findIndex((x) => x < 0)]}; gross ${f(r.gross * 1e4, 1)} bp, cost ${f(r.cost * 1e4, 2)} bp for ${r.n} orders`));
 } else {
-  const random = mulberry(20261123);
-  // The control. First written as a ranking drawn anew every day; that portfolio changes hands daily, so with a hold
-  // of weeks it is an average of many unrelated pairs and scatters far less than the real one, which keeps its pairs:
-  // every real cell looked extreme against it. Corrected after the first run: the real ranking is kept, with its
-  // persistence, and the names of the currencies are shuffled once per draw (the strongest is "EUR" when it is AUD).
-  const randomNames = () => { const p = [...Array(N).keys()]; for (let i = N - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; } return p; };
-  const renamed = (w, p) => { const out = new Float64Array(N); for (let i = 0; i < N; i++) out[p[i]] = w[i]; return out; };
   console.log(`Currency strength, dev ${DEV_FROM} .. ${DEV_TO}. gross, cost, swaps, net: basis points of the money in the trade per day; "a year": percent a year with no leverage; t by weeks.`);
   console.log(`tr/mo: orders in the dollar pairs a month. ctl: the share of ${SHUFFLES} draws of the control (the same ranking with the names of the currencies shuffled) that the real one beats before costs (50% = no edge). years: years above zero before costs.`);
   console.log(`"no swaps": the net on an account without swaps. "reversed": the weakest bought against the strongest, after costs, with swaps and without.`);
