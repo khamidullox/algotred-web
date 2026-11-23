@@ -22,6 +22,17 @@
 //    the lowest low of the 120 candles before the first of the two lows.
 //    Control: the same low of RSI with no divergence.
 //
+// C. "A series of candles and its break" at a level (their photos of
+//    2026-04-19, AUDJPY H1 and M15; the candle model of TZ 17.8, there on H4
+//    with no level). Said for a rising series, mirrored for a falling one.
+//    Series: 5 candles or more in a row, each low not under the low before
+//    it, two thirds of them closed up, 2 ATR(14) from the first open to the
+//    last close. Break: the first candle whose low is under the low before
+//    it. Sell on the next open, the stop one pip over the high of the series,
+//    take 1:1 and 1:2. "At a level": the high of the series within 0.25 of
+//    the daily ATR of the highest high of the 120 candles before the series.
+//    Control: the same break after a run of fewer than 3 candles.
+//
 // One position a pair, costs as in the engine, the stop before the take
 // within a bar.
 //
@@ -31,6 +42,8 @@
 //        node research/fx-chat-notes.mjs cross                         dev: the same divergence on H4, rules unchanged,
 //          on the 21 crosses built from the dollar pairs
 //        node research/fx-chat-notes.mjs window FROM TO cross          the mechanics of the crosses before dev begins
+//        node research/fx-chat-notes.mjs series [gallery.html]         dev: part C alone
+//        node research/fx-chat-notes.mjs window FROM TO series         the mechanics of part C before dev begins
 //        node research/fx-chat-notes.mjs window FROM TO                a list of trades in a window that ends
 //          before dev begins: to check the mechanics, nothing is counted
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -60,7 +73,10 @@ const RULES = {
   rsi: 14, left: 5, rights: [5, 2], rangeMin: 5, rangeMax: 60,
   takes: [1, 1.5],
   levelCandles: 120, levelDayAtr: 0.25,
-  // both
+  // C: the series of candles (the numbers of TZ 17.8, but 5 candles as in the photo instead of 6)
+  seriesMin: 5, seriesWhite: 2 / 3, seriesAtr: 2, seriesTakes: [1, 2],
+  noSeriesMax: 2, // the control: the run before the break is not longer than this
+  // all
   lifeCandles: 120, // candles of its timeframe a trade may live
 };
 // The 21 crosses of the seven currencies (TZ 17.29), for the second look at the divergence on H4 at a level.
@@ -76,10 +92,11 @@ const OWN_SWAP = {
 const CROSSES = Object.keys(OWN_SWAP);
 const SPREAD_SHARE = 0.7; // the assumed spread of the broker's own cross as a share of the two-leg spread
 const CROSS_CLOSED = new Set([22, 23, 0]); // server hours with no bars of a cross
-const windowMode = process.argv[2] === "window" ? { from: process.argv[3], to: process.argv[4], cross: process.argv[5] === "cross" } : null;
-const levelMode = process.argv[2] === "level", crossMode = process.argv[2] === "cross";
+const windowMode = process.argv[2] === "window" ? { from: process.argv[3], to: process.argv[4], cross: process.argv[5] === "cross", series: process.argv[5] === "series" } : null;
+const levelMode = process.argv[2] === "level", crossMode = process.argv[2] === "cross", seriesMode = process.argv[2] === "series";
 const onCrosses = crossMode || (windowMode !== null && windowMode.cross);
-const galleryFile = windowMode || levelMode || crossMode ? undefined : process.argv[2];
+const onSeries = seriesMode || (windowMode !== null && windowMode.series);
+const galleryFile = windowMode || levelMode || crossMode ? undefined : seriesMode ? process.argv[3] : process.argv[2];
 const FROM = windowMode ? windowMode.from : DEV_FROM, TO = windowMode ? windowMode.to : DEV_TO;
 if (windowMode && !(windowMode.to < DEV_FROM)) { console.error(`the window must end before ${DEV_FROM}: dev, test and holdout are not for checking the mechanics`); process.exit(1); }
 const DAY_ATR = windowMode ? 5 : 20; // the data begin four weeks before dev: the check of the mechanics takes a shorter daily ATR
@@ -307,7 +324,7 @@ function candidates(symbol, m, costs) {
 
   // A. The grid on an engulfing candle, and on a candle of the same size and colour that is not one.
   const tol = RULES.bodyTolerancePips * m.s.pip;
-  for (const name of onCrosses ? [] : Object.keys(TF)) {
+  for (const name of onCrosses || onSeries ? [] : Object.keys(TF)) {
     const { bars, av, trend, ext } = m.tf[name], life = RULES.lifeCandles * TF[name];
     for (let j = RULES.extremeCandles + 2; j + 1 < bars.length; j++) {
       const p = bars[j - 1], b = bars[j], range = b.h - b.l, dAtr = m.day.get(b.date);
@@ -328,7 +345,7 @@ function candidates(symbol, m, costs) {
   }
 
   // B. A low of RSI that diverges from the price, and a low of RSI that does not.
-  for (const name of onCrosses ? ["H4"] : ["H4", "H1"]) {
+  for (const name of onSeries ? [] : onCrosses ? ["H4"] : ["H4", "H1"]) {
     const { bars, osc } = m.tf[name], life = RULES.lifeCandles * TF[name];
     for (const right of RULES.rights) for (const dir of [1, -1]) {
       const w = (k) => -dir * osc[k], px = (k) => (dir > 0 ? bars[k].l : bars[k].h);
@@ -350,6 +367,34 @@ function candidates(symbol, m, costs) {
         const atLevel = Number.isFinite(level) && Number.isFinite(dAtr) && Math.abs(px(i) - level) <= RULES.levelDayAtr * dAtr;
         const fill = marketEntry(m, bars[conf].last + 1, dir, costs);
         for (const take of RULES.takes) put(`B|${name}|${right}|${take}|${div ? "pattern" : "control"}`, holdR(m, fill, dir, far - dir * m.s.pip, take, life, costs), { part: "B", name, i, before, conf, dir, atLevel });
+      }
+    }
+  }
+  // C. The break of a series of candles, and the same break after a run too short to be a series.
+  // `dir` is the direction of the series; inside, prices are multiplied by it ("q"), so that both are "a rising series".
+  for (const name of onSeries ? ["H1", "M15"] : []) {
+    const { bars, av } = m.tf[name], life = RULES.lifeCandles * TF[name];
+    for (const dir of [1, -1]) {
+      const lo = (k) => (dir > 0 ? bars[k].l : -bars[k].h), hi = (k) => (dir > 0 ? bars[k].h : -bars[k].l);
+      const top = (a, b) => { let t = -Infinity; for (let k = a; k <= b; k++) t = Math.max(t, hi(k)); return t; };
+      let start = 0; // the first candle of the run of lows that do not fall
+      for (let i = 1; i + 1 < bars.length; i++) {
+        if (lo(i) >= lo(i - 1)) continue;
+        const from = start, len = i - start; // the run is bars[from .. i - 1], candle i breaks it
+        start = i;
+        const dAtr = m.day.get(bars[i].date);
+        if (bars[i].date < FROM || !Number.isFinite(dAtr) || !Number.isFinite(av[i - 1])) continue;
+        let white = 0;
+        for (let k = from; k < i; k++) if (dir * (bars[k].c - bars[k].o) > 0) white++;
+        const series = len >= RULES.seriesMin && white >= RULES.seriesWhite * len && dir * (bars[i - 1].c - bars[from].o) >= RULES.seriesAtr * av[i - 1];
+        const control = len <= RULES.noSeriesMax;
+        if (!series && !control) continue;
+        const first = series ? from : i - RULES.seriesMin; // the control takes the last 5 candles in place of a series
+        if (first < RULES.levelCandles) continue;
+        const peak = top(first, i), level = top(first - RULES.levelCandles, first - 1);
+        const fill = marketEntry(m, bars[i].last + 1, -dir, costs);
+        const extra = { part: "C", name, i, first, dir: -dir, level: dir * level, len, atLevel: Math.abs(peak - level) <= RULES.levelDayAtr * dAtr };
+        for (const take of RULES.seriesTakes) put(`C|${name}|${take}|${series ? "pattern" : "control"}`, holdR(m, fill, -dir, dir * peak + dir * m.s.pip, take, life, costs), extra);
       }
     }
   }
@@ -424,6 +469,20 @@ function cardB(m, c, title) {
   const digits = m.s.digits === 3 ? 3 : 5;
   return `<section><h2>${title}</h2><p>${t.dir > 0 ? "Покупка: цена сделала минимум ниже, RSI — выше" : "Продажа: цена сделала максимум выше, RSI — ниже"}. Вход ${t.entry.toFixed(digits)}, стоп ${t.stop.toFixed(digits)}, тейк ${t.take.toFixed(digits)}. Итог: ${ENDS[t.reason]} (${f(t.r, 2)} R после издержек).</p>${svg}</section>`;
 }
+/** C: the series in a box, the level it came to, the entry after the candle that broke it. */
+function cardC(m, c, title) {
+  const t = c.t, H = 320, { bars } = m.tf[c.name];
+  let boxTop = -Infinity, boxBottom = Infinity;
+  for (let k = c.first; k < c.i; k++) { boxTop = Math.max(boxTop, bars[k].h); boxBottom = Math.min(boxBottom, bars[k].l); }
+  const fr = frame(m, { ...c, before: c.first }, H, [c.level]);
+  const { x, y, bw, W, padR } = fr;
+  const box = `<rect x="${n1(x(c.first) - bw)}" y="${n1(y(boxTop) - 3)}" width="${n1(x(c.i - 1) - x(c.first) + 2 * bw)}" height="${n1(y(boxBottom) - y(boxTop) + 6)}" class="box"/>`;
+  const level = `<line x1="${n1(x(fr.from))}" x2="${W - padR}" y1="${n1(y(c.level))}" y2="${n1(y(c.level))}" class="fig"/><text x="${W - padR + 4}" y="${n1(y(c.level) + 4)}" class="lbl">уровень</text>`;
+  const mark = `<line x1="${n1(x(fr.entryBar))}" x2="${n1(x(fr.entryBar))}" y1="12" y2="${H - 12}" class="entry"/>`;
+  const svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}">${fr.candles}${box}${level}${mark}${fr.hline(t.entry, "ent", "вход")}${fr.hline(t.stop, "stp", "стоп")}${fr.hline(t.take, "tp", "тейк")}</svg>`;
+  const digits = m.s.digits === 3 ? 3 : 5;
+  return `<section><h2>${title}</h2><p>${t.dir > 0 ? "Покупка после падающей серии" : "Продажа после растущей серии"} из ${c.len} свечей. Вход ${t.entry.toFixed(digits)}, стоп ${t.stop.toFixed(digits)}, тейк ${t.take.toFixed(digits)}. Итог: ${ENDS[t.reason]} (${f(t.r, 2)} R после издержек).</p>${svg}</section>`;
+}
 function page(heading, lead, cards) {
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Записи из чата</title><style>
 :root{--bg:#fff;--fg:#1c1c1c;--mut:#6b6b6b;--up:#1a8f5a;--dn:#c0392b;--fig:#2456c7;--line:#888}
@@ -452,17 +511,51 @@ const brief = (label, trades) => { const s = summary(trades); return `${pad(labe
 if (windowMode) {
   // The mechanics on a few weeks that belong to no dataset: every trade of a few variants with its prices.
   console.log(`Trades between ${FROM} and ${TO} (before dev begins; the daily ATR here is of ${DAY_ATR} days). For checking the mechanics only.`);
-  const keys = onCrosses ? ["B|H4|2|1|pattern", "B|H4|5|1.5|control"] : ["A|H1|0.5|1.618|pattern", "A|H1|0.382|2.618|pattern", "A|M15|0.5|1.618|pattern", "A|H4|0.5|1.618|control", "B|H1|5|1|pattern", "B|H1|2|1.5|control"];
+  const keys = onSeries ? ["C|H1|1|pattern", "C|M15|2|pattern", "C|H1|1|control"] : onCrosses ? ["B|H4|2|1|pattern", "B|H4|5|1.5|control"] : ["A|H1|0.5|1.618|pattern", "A|H1|0.382|2.618|pattern", "A|M15|0.5|1.618|pattern", "A|H4|0.5|1.618|control", "B|H1|5|1|pattern", "B|H1|2|1.5|control"];
   for (const key of keys) {
     for (const [label, map] of onCrosses ? [["two legs", net], ["own cross", own], ["before costs", gross]] : [["after costs", net], ["before costs", gross]]) {
       const list = pick(map, key, () => true);
       console.log(`--- ${key}, ${label}: ${list.length} trades`);
       for (const c of list.slice(0, 6)) {
         const m = markets.get(c.symbol), b = m.m15[c.t.e], x = m.m15[c.t.x], d = m.s.digits, bars = m.tf[c.name].bars;
-        const what = c.part === "A" ? `candle ${bars[c.j].date} ${String(bars[c.j].hour).padStart(2, "0")}h o ${bars[c.j].o.toFixed(d)} h ${bars[c.j].h.toFixed(d)} l ${bars[c.j].l.toFixed(d)} c ${bars[c.j].c.toFixed(d)}${c.atExtreme ? " extreme" : ""}${c.withTrend ? " trend" : ""}` : `rsi turns ${bars[c.before].date} ${m.tf[c.name].osc[c.before].toFixed(1)} -> ${bars[c.i].date} ${String(bars[c.i].hour).padStart(2, "0")}h ${m.tf[c.name].osc[c.i].toFixed(1)}${c.atLevel ? " level" : ""}`;
+        const hh = (k) => `${bars[k].date} ${String(bars[k].hour).padStart(2, "0")}h`;
+        const what = c.part === "C" ? `run of ${c.len} candles, shown from ${hh(c.first)}, broken by the candle ${hh(c.i)}, level ${c.level.toFixed(d)}${c.atLevel ? " (at it)" : ""}` : c.part === "A" ? `candle ${bars[c.j].date} ${String(bars[c.j].hour).padStart(2, "0")}h o ${bars[c.j].o.toFixed(d)} h ${bars[c.j].h.toFixed(d)} l ${bars[c.j].l.toFixed(d)} c ${bars[c.j].c.toFixed(d)}${c.atExtreme ? " extreme" : ""}${c.withTrend ? " trend" : ""}` : `rsi turns ${bars[c.before].date} ${m.tf[c.name].osc[c.before].toFixed(1)} -> ${bars[c.i].date} ${String(bars[c.i].hour).padStart(2, "0")}h ${m.tf[c.name].osc[c.i].toFixed(1)}${c.atLevel ? " level" : ""}`;
         console.log(`  ${c.symbol} ${what} | ${c.t.dir > 0 ? "buy " : "sell"} ${b.date} ${String(b.hour).padStart(2, "0")}:${String(b.minute).padStart(2, "0")} at ${c.t.entry.toFixed(d)} stop ${c.t.stop.toFixed(d)} take ${c.t.take.toFixed(d)} rr ${c.t.rr.toFixed(2)} -> ${c.t.reason} ${x.date} ${String(x.hour).padStart(2, "0")}:${String(x.minute).padStart(2, "0")} r ${f(c.t.r, 2)}`);
       }
     }
+  }
+} else if (seriesMode) {
+  // Part C: the break of a series of candles, everywhere and at a level, against the same break with no series.
+  const months = (Date.parse(DEV_TO) - Date.parse(DEV_FROM)) / (86400e3 * 30.44);
+  console.log(`A series of candles and its break, dev ${DEV_FROM} .. ${DEV_TO}. R = the stop distance; "before" and "wins" are before costs; t counts weeks.`);
+  console.log(`With no edge a take of 1 gives 0 R and 50% of wins before costs, a take of 2 gives 0 R and 33%. The control stands to the right of every row.`);
+  let cells = 0;
+  for (const name of ["H1", "M15"]) for (const take of RULES.seriesTakes) {
+    console.log(`\n=== ${name}, take 1:${take} ===`);
+    console.log(`${pad("", 26)} ${lpad("n", 6)} ${lpad("/mo", 6)} ${lpad("before", 7)} ${lpad("t", 5)} ${lpad("wins", 5)} ${lpad("after", 7)} ${lpad("t", 5)} | ${lpad("1st", 7)} | ${lpad("2nd", 7)} | pairs+ || control: n, before, wins, after`);
+    for (const [label, test] of [["every series", () => true], ["at a level", (c) => c.atLevel], ["away from a level", (c) => !c.atLevel]]) {
+      const stem = `C|${name}|${take}`, tr = pick(net, `${stem}|pattern`, test), all = summary(tr), gs = summary(pick(gross, `${stem}|pattern`, test));
+      const a = summary(tr.filter((c) => c.t.date < SPLIT)), b = summary(tr.filter((c) => c.t.date >= SPLIT));
+      const plus = PAIRS.filter((p) => mean(tr.filter((c) => c.symbol === p).map((c) => c.t.r)) > 0).length;
+      const cn = summary(pick(net, `${stem}|control`, test)), cg = summary(pick(gross, `${stem}|control`, test));
+      cells++;
+      console.log(`${pad(label, 26)} ${lpad(all.n, 6)} ${lpad((all.n / months).toFixed(1), 6)} ${lpad(f(gs.meanR), 7)} ${lpad(f(gs.t, 1), 5)} ${lpad(pct(gs.win), 5)} ${lpad(f(all.meanR), 7)} ${lpad(f(all.t, 1), 5)} | ${lpad(f(a.meanR), 7)} | ${lpad(f(b.meanR), 7)} | ${plus}/${PAIRS.length} || ${lpad(cn.n, 6)} ${lpad(f(cg.meanR), 7)} ${lpad(pct(cg.win), 5)} ${lpad(f(cn.meanR), 7)}`);
+    }
+  }
+  console.log(`\nCells counted: ${cells} (each with its control).`);
+  for (const key of ["C|H1|1|pattern", "C|M15|1|pattern"]) {
+    const tr = pick(net, key, () => true), gr = pick(gross, key, () => true);
+    if (tr.length === 0) continue;
+    const pips = tr.map((c) => Math.abs(c.t.entry - c.t.stop) / markets.get(c.symbol).s.pip).sort((x, y) => x - y), lens = tr.map((c) => c.len).sort((x, y) => x - y), reasons = {};
+    for (const c of tr) reasons[c.t.reason] = (reasons[c.t.reason] ?? 0) + 1;
+    console.log(`${pad(key, 16)} median stop ${pips[Math.floor(pips.length / 2)].toFixed(0)} pips; median series ${lens[Math.floor(lens.length / 2)]} candles; costs take ${(mean(gr.map((c) => c.t.r)) - mean(tr.map((c) => c.t.r))).toFixed(3)} R a trade; sells after a rising series ${f(mean(gr.filter((c) => c.t.dir < 0).map((c) => c.t.r)))} R before costs, buys after a falling one ${f(mean(gr.filter((c) => c.t.dir > 0).map((c) => c.t.r)))} R; ended: ${Object.entries(reasons).map(([k, v]) => `${k} ${v}`).join(", ")}`);
+  }
+  if (galleryFile !== undefined) {
+    // The first cases at a level in time order on EURUSD from 2019, with no selection by result.
+    const cards = pick(net, "C|H1|1|pattern", (c) => c.atLevel && c.symbol === "EURUSD" && c.t.date >= "2019-01-01").slice(0, 8).map((c) => cardC(markets.get(c.symbol), c, `Серия свечей у уровня, H1 — ${c.symbol}, ${c.t.date}`));
+    mkdirSync(path.dirname(galleryFile), { recursive: true });
+    writeFileSync(galleryFile, page("Как программа видит серию свечей у уровня и её пробой", "Свечи H1. Первые по порядку случаи на EURUSD с 2019 года, без отбора по результату: среди них есть и убыточные. В рамке — серия свечей; горизонтальная синяя линия — уровень (экстремум 120 свечей перед серией). Серый пунктир — момент входа, сразу после свечи, пробившей серию.", cards));
+    console.log(`\n${cards.length} pictures written to ${galleryFile}`);
   }
 } else if (crossMode) {
   // The second look at the one family left open on the dollar pairs: the same rules on other instruments.
