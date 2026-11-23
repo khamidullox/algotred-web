@@ -28,6 +28,9 @@
 // Usage: node research/fx-chat-notes.mjs [gallery.html]               dev
 //        node research/fx-chat-notes.mjs level                         dev: the divergence on H4 at a level (the one
 //          family that stood above its control when the 64 cells were read) by pair, by year and by side
+//        node research/fx-chat-notes.mjs cross                         dev: the same divergence on H4, rules unchanged,
+//          on the 21 crosses built from the dollar pairs
+//        node research/fx-chat-notes.mjs window FROM TO cross          the mechanics of the crosses before dev begins
 //        node research/fx-chat-notes.mjs window FROM TO                a list of trades in a window that ends
 //          before dev begins: to check the mechanics, nothing is counted
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -60,9 +63,23 @@ const RULES = {
   // both
   lifeCandles: 120, // candles of its timeframe a trade may live
 };
-const windowMode = process.argv[2] === "window" ? { from: process.argv[3], to: process.argv[4] } : null;
-const levelMode = process.argv[2] === "level";
-const galleryFile = windowMode || levelMode ? undefined : process.argv[2];
+// The 21 crosses of the seven currencies (TZ 17.29), for the second look at the divergence on H4 at a level.
+const CUR = { EUR: ["EURUSD", false], GBP: ["GBPUSD", false], AUD: ["AUDUSD", false], NZD: ["NZDUSD", false], JPY: ["USDJPY", true], CAD: ["USDCAD", true], CHF: ["USDCHF", true] };
+/** FundedNext swap calculator, read 2026-11-21: points per lot per night, buy / sell (a point is a tenth of a pip). */
+const OWN_SWAP = {
+  EURGBP: [-7.16, 0.056], EURAUD: [2.973, -3.08], EURNZD: [-19.005, 2.25], EURJPY: [-16.6038, -49.56], EURCAD: [-11.235, 0.085], EURCHF: [-6.539, -13.32],
+  GBPAUD: [-2.73, -15.135], GBPNZD: [-10.905, -6.555], GBPJPY: [-25.806, -44.278], GBPCAD: [-4.59, -11.835], GBPCHF: [-8.251, -26.37],
+  AUDNZD: [1.35, -0.78], AUDJPY: [-11.27, -19.841], AUDCAD: [-5.565, -1.32], AUDCHF: [-2.41, -9.69],
+  NZDJPY: [-15.837, -21.783], NZDCAD: [-1.17, -6.818], NZDCHF: [0.347, -11.58],
+  CADJPY: [-15.315, -26.82], CADCHF: [-3.3456, -13.245], CHFJPY: [-6.1206, -17.37],
+};
+const CROSSES = Object.keys(OWN_SWAP);
+const SPREAD_SHARE = 0.7; // the assumed spread of the broker's own cross as a share of the two-leg spread
+const CROSS_CLOSED = new Set([22, 23, 0]); // server hours with no bars of a cross
+const windowMode = process.argv[2] === "window" ? { from: process.argv[3], to: process.argv[4], cross: process.argv[5] === "cross" } : null;
+const levelMode = process.argv[2] === "level", crossMode = process.argv[2] === "cross";
+const onCrosses = crossMode || (windowMode !== null && windowMode.cross);
+const galleryFile = windowMode || levelMode || crossMode ? undefined : process.argv[2];
 const FROM = windowMode ? windowMode.from : DEV_FROM, TO = windowMode ? windowMode.to : DEV_TO;
 if (windowMode && !(windowMode.to < DEV_FROM)) { console.error(`the window must end before ${DEV_FROM}: dev, test and holdout are not for checking the mechanics`); process.exit(1); }
 const DAY_ATR = windowMode ? 5 : 20; // the data begin four weeks before dev: the check of the mechanics takes a shorter daily ATR
@@ -167,8 +184,39 @@ function extremesBefore(bars, n) {
   }
   return { hi, lo };
 }
-function build(symbol, from, to) {
-  const m15 = loadM15(symbol, from, to);
+const build = (symbol, from, to) => finish(spec(symbol), loadM15(symbol, from, to));
+/**
+ * A cross of two currencies from the M15 bars of their dollar pairs: its open and close at every quarter of an
+ * hour (the high and the low inside the quarter are not known, so they are the larger and the smaller of the
+ * two). No bars from 22:00 to 01:00 by the server: there the spreads are wide and the files of two pairs do not
+ * move together (TZ 17.23). Every bar carries two sets of costs as shares of the price, turned into price units:
+ * "two" (the cross traded as its two dollar pairs: all of it is known) and "own" (the broker's own cross: swaps
+ * from the FundedNext calculator, the spread assumed to be SPREAD_SHARE of the two-leg spread).
+ */
+function buildCross(name, from, to) {
+  const X = name.slice(0, 3), Y = name.slice(3), [pairX, invX] = CUR[X], [pairY, invY] = CUR[Y];
+  const sa = spec(pairX), sb = spec(pairY);
+  const other = new Map(loadM15(pairY, from, to).map((b) => [`${b.date} ${b.hour} ${b.minute}`, b]));
+  const digits = Y === "JPY" ? 3 : 5, point = 10 ** -digits, pip = point * 10;
+  const value = (p, inv) => (inv ? 1 / p : p); // dollars for one unit of the currency
+  const leg = (s, bar) => ({ spread: (Math.max(bar.spread, s.minSpread) * s.point) / bar.o, slip: s.slip / bar.o, comm: s.base ? s.commission / s.contract : s.commission / (s.contract * bar.o), swapLong: s.swapLong / bar.o, swapShort: s.swapShort / bar.o });
+  const m15 = [];
+  for (const a of loadM15(pairX, from, to)) {
+    const b = other.get(`${a.date} ${a.hour} ${a.minute}`);
+    if (b === undefined || CROSS_CLOSED.has(a.hour)) continue;
+    const o = value(a.o, invX) / value(b.o, invY), c = value(a.c, invX) / value(b.c, invY), ra = leg(sa, a), rb = leg(sb, b);
+    // Long the cross = long X against the dollar and short Y against the dollar.
+    m15.push({
+      date: a.date, hour: a.hour, minute: a.minute, o, h: Math.max(o, c), l: Math.min(o, c), c,
+      cost: {
+        two: { spread: (ra.spread + rb.spread) * o, slip: (ra.slip + rb.slip) * o, comm: ra.comm + rb.comm, swapLong: (invX ? ra.swapShort : ra.swapLong) + (invY ? rb.swapLong : rb.swapShort), swapShort: (invX ? ra.swapLong : ra.swapShort) + (invY ? rb.swapShort : rb.swapLong) },
+        own: { spread: SPREAD_SHARE * (ra.spread + rb.spread) * o, slip: config.costs.slippagePips * pip, comm: config.costs.commissionPerLotRoundTrip / (100000 * value(a.o, invX)), swapLong: (OWN_SWAP[name][0] * point) / o, swapShort: (OWN_SWAP[name][1] * point) / o },
+      },
+    });
+  }
+  return finish({ symbol: name, point, pip, digits }, m15);
+}
+function finish(s, m15) {
   const d1 = aggregate(m15, (b) => b.date), dAtr = atr(d1, DAY_ATR), day = new Map();
   d1.forEach((b, i) => { if (i > 0) day.set(b.date, dAtr[i - 1]); });
   const tf = {};
@@ -177,22 +225,24 @@ function build(symbol, from, to) {
     bars.forEach((b, k) => { for (let j = b.first; j <= b.last; j++) of[j] = k; });
     tf[name] = { bars, av, of, trend: steps(bars, zigzag(bars, av)), ext: extremesBefore(bars, RULES.extremeCandles), osc: rsi(bars, RULES.rsi) };
   }
-  return { s: spec(symbol), m15, day, tf };
+  return { s, m15, day, tf };
 }
 
 // ------------------------------------------------------------------ orders and the trade
-const spreadOf = (m, b, costs) => (costs ? Math.max(b.spread, m.s.minSpread) * m.s.point : 0);
+// `costs` is false (before costs), true (a dollar pair with the costs of the config) or, for a cross, the name of
+// the set of costs that stands in its bars: "two" or "own".
+const spreadOf = (m, b, costs) => (!costs ? 0 : b.cost ? b.cost[costs].spread : Math.max(b.spread, m.s.minSpread) * m.s.point);
+const slipOf = (m, b, costs) => (!costs ? 0 : b.cost ? b.cost[costs].slip : m.s.slip);
 function marketEntry(m, j, dir, costs) {
   const b = m.m15[j];
   if (b === undefined) return null;
-  const slip = costs ? m.s.slip : 0;
+  const slip = slipOf(m, b, costs);
   return { j, intrabar: false, entry: dir > 0 ? b.o + spreadOf(m, b, costs) + slip : b.o - slip };
 }
 /** A limit order at a fixed price; filled at its price, or at the open when the bar opens through it. Removed when the price reaches `cancelAt` first. */
 function limitEntry(m, jFrom, jTo, dir, P, cancelAt, costs) {
-  const slip = costs ? m.s.slip : 0;
   for (let j = jFrom; j <= jTo && j < m.m15.length; j++) {
-    const b = m.m15[j], sp = spreadOf(m, b, costs);
+    const b = m.m15[j], sp = spreadOf(m, b, costs), slip = slipOf(m, b, costs);
     if (dir > 0) {
       if (b.l + sp <= P) return { j, intrabar: b.o + sp > P, entry: Math.min(P, b.o + sp) + slip };
       if (b.h >= cancelAt) return null;
@@ -210,12 +260,12 @@ function limitEntry(m, jFrom, jTo, dir, P, cancelAt, costs) {
  */
 function hold(m, fill, dir, stop, take, lifeBars, costs) {
   if (fill === null) return null;
-  const { s, m15 } = m, slip = costs ? s.slip : 0, { j: j0, entry } = fill;
+  const { s, m15 } = m, { j: j0, entry } = fill;
   const dist = dir * (entry - stop), rr = (dir * (take - entry)) / dist;
   if (!(dist > 0) || !(rr > 0)) return null;
   let nights = 0, exit = NaN, reason = "", j = j0;
   for (; j < m15.length; j++) {
-    const b = m15[j], sp = spreadOf(m, b, costs), first = j === j0 && fill.intrabar;
+    const b = m15[j], sp = spreadOf(m, b, costs), slip = slipOf(m, b, costs), first = j === j0 && fill.intrabar;
     if (j > j0 && b.date !== m15[j - 1].date) nights += weekday(m15[j - 1].date) === 3 ? 3 : 1;
     if (j - j0 >= lifeBars) { exit = dir > 0 ? b.o - slip : b.o + sp + slip; reason = "time"; break; }
     if (dir > 0) {
@@ -228,7 +278,10 @@ function hold(m, fill, dir, stop, take, lifeBars, costs) {
   }
   if (!Number.isFinite(exit)) return null; // the data ended with the position open
   let r = (dir * (exit - entry)) / dist;
-  if (costs) {
+  if (costs && m15[j0].cost) {
+    const k = m15[j0].cost[costs]; // a cross: shares of the price as they stood on the bar of the entry
+    r += (((dir > 0 ? k.swapLong : k.swapShort) * nights - k.comm) * entry) / dist;
+  } else if (costs) {
     const swap = (dir > 0 ? s.swapLong : s.swapShort) * (s.swapRef === null ? 1 : entry / s.swapRef) * nights;
     const commission = s.base ? (s.commission / s.contract) * entry : s.commission / s.contract;
     r += (swap - commission) / dist;
@@ -247,14 +300,14 @@ function holdR(m, fill, dir, stopPrice, takeR, lifeBars, costs) {
 }
 
 // ------------------------------------------------------------------ the entries
-/** All candidates of one pair: a map from the name of a variant to its trades. */
+/** All candidates of one pair: a map from the name of a variant to its trades. On the crosses only the divergence on H4 is looked at. */
 function candidates(symbol, m, costs) {
   const out = new Map();
   const put = (key, t, extra) => { if (t === null || t.date < FROM) return; let a = out.get(key); if (a === undefined) out.set(key, (a = [])); a.push({ symbol, t, ...extra }); };
 
   // A. The grid on an engulfing candle, and on a candle of the same size and colour that is not one.
   const tol = RULES.bodyTolerancePips * m.s.pip;
-  for (const name of Object.keys(TF)) {
+  for (const name of onCrosses ? [] : Object.keys(TF)) {
     const { bars, av, trend, ext } = m.tf[name], life = RULES.lifeCandles * TF[name];
     for (let j = RULES.extremeCandles + 2; j + 1 < bars.length; j++) {
       const p = bars[j - 1], b = bars[j], range = b.h - b.l, dAtr = m.day.get(b.date);
@@ -275,7 +328,7 @@ function candidates(symbol, m, costs) {
   }
 
   // B. A low of RSI that diverges from the price, and a low of RSI that does not.
-  for (const name of ["H4", "H1"]) {
+  for (const name of onCrosses ? ["H4"] : ["H4", "H1"]) {
     const { bars, osc } = m.tf[name], life = RULES.lifeCandles * TF[name];
     for (const right of RULES.rights) for (const dir of [1, -1]) {
       const w = (k) => -dir * osc[k], px = (k) => (dir > 0 ? bars[k].l : bars[k].h);
@@ -384,20 +437,24 @@ h1{font-size:22px}h2{font-size:17px;margin:28px 0 4px}p{margin:4px 0 8px;color:v
 }
 
 // ------------------------------------------------------------------ run
-const net = new Map(), gross = new Map(), markets = new Map();
+// `net`: after costs (a cross: traded as its two dollar pairs); `own`: a cross with the costs of the broker's own cross.
+const net = new Map(), gross = new Map(), own = new Map(), markets = new Map();
 const merge = (into, from) => { for (const [k, v] of from) into.set(k, (into.get(k) ?? []).concat(v)); };
-for (const symbol of PAIRS) {
-  const m = build(symbol, "2015-01-01", TO);
+for (const symbol of onCrosses ? CROSSES : PAIRS) {
+  const m = onCrosses ? buildCross(symbol, "2015-01-01", TO) : build(symbol, "2015-01-01", TO);
   markets.set(symbol, m);
-  merge(net, candidates(symbol, m, true)); merge(gross, candidates(symbol, m, false));
+  merge(net, candidates(symbol, m, onCrosses ? "two" : true)); merge(gross, candidates(symbol, m, false));
+  if (onCrosses) merge(own, candidates(symbol, m, "own"));
 }
 const pick = (map, key, test) => sequence((map.get(key) ?? []).filter(test).sort((x, y) => x.t.e - y.t.e));
+const brief = (label, trades) => { const s = summary(trades); return `${pad(label, 26)} ${lpad(s.n, 5)} ${lpad(f(s.meanR), 7)} ${lpad(f(s.t, 1), 5)} ${lpad(pct(s.win), 5)}`; };
 
 if (windowMode) {
   // The mechanics on a few weeks that belong to no dataset: every trade of a few variants with its prices.
   console.log(`Trades between ${FROM} and ${TO} (before dev begins; the daily ATR here is of ${DAY_ATR} days). For checking the mechanics only.`);
-  for (const key of ["A|H1|0.5|1.618|pattern", "A|H1|0.382|2.618|pattern", "A|M15|0.5|1.618|pattern", "A|H4|0.5|1.618|control", "B|H1|5|1|pattern", "B|H1|2|1.5|control"]) {
-    for (const [label, map] of [["after costs", net], ["before costs", gross]]) {
+  const keys = onCrosses ? ["B|H4|2|1|pattern", "B|H4|5|1.5|control"] : ["A|H1|0.5|1.618|pattern", "A|H1|0.382|2.618|pattern", "A|M15|0.5|1.618|pattern", "A|H4|0.5|1.618|control", "B|H1|5|1|pattern", "B|H1|2|1.5|control"];
+  for (const key of keys) {
+    for (const [label, map] of onCrosses ? [["two legs", net], ["own cross", own], ["before costs", gross]] : [["after costs", net], ["before costs", gross]]) {
       const list = pick(map, key, () => true);
       console.log(`--- ${key}, ${label}: ${list.length} trades`);
       for (const c of list.slice(0, 6)) {
@@ -407,9 +464,35 @@ if (windowMode) {
       }
     }
   }
+} else if (crossMode) {
+  // The second look at the one family left open on the dollar pairs: the same rules on other instruments.
+  const months = (Date.parse(DEV_TO) - Date.parse(DEV_FROM)) / (86400e3 * 30.44), line = brief;
+  console.log(`RSI divergence on H4 on the 21 crosses built from the dollar pairs, dev ${DEV_FROM} .. ${DEV_TO}. The rules are those of the dollar pairs, unchanged.`);
+  console.log(`A cross is known at the quarter-hour marks only and has no bars from 22:00 to 01:00 by the server. "two legs": traded as its two dollar pairs; "own": the broker's own cross, its spread assumed. t counts weeks.`);
+  for (const right of RULES.rights) for (const take of RULES.takes) {
+    console.log(`\n=== H4, ${right} candles on the right, take 1:${take} ===`);
+    console.log(`${pad("", 18)} ${lpad("n", 5)} ${lpad("/mo", 5)} ${lpad("before", 7)} ${lpad("t", 5)} ${lpad("wins", 5)} | ${lpad("2 legs", 7)} ${lpad("t", 5)} | ${lpad("own", 7)} ${lpad("t", 5)} | crosses+ || control: n, before, t, wins, 2 legs`);
+    for (const [label, test] of [["every divergence", () => true], ["at a level", (c) => c.atLevel]]) {
+      const stem = `B|H4|${right}|${take}`, g = pick(gross, `${stem}|pattern`, test), sg = summary(g), s2 = summary(pick(net, `${stem}|pattern`, test)), so = summary(pick(own, `${stem}|pattern`, test));
+      const cg = summary(pick(gross, `${stem}|control`, test)), c2 = summary(pick(net, `${stem}|control`, test));
+      const plus = CROSSES.filter((p) => mean(g.filter((c) => c.symbol === p).map((c) => c.t.r)) > 0).length;
+      console.log(`${pad(label, 18)} ${lpad(sg.n, 5)} ${lpad((sg.n / months).toFixed(1), 5)} ${lpad(f(sg.meanR), 7)} ${lpad(f(sg.t, 1), 5)} ${lpad(pct(sg.win), 5)} | ${lpad(f(s2.meanR), 7)} ${lpad(f(s2.t, 1), 5)} | ${lpad(f(so.meanR), 7)} ${lpad(f(so.t, 1), 5)} | ${lpad(plus, 2)}/${CROSSES.length} || ${lpad(cg.n, 5)} ${lpad(f(cg.meanR), 7)} ${lpad(f(cg.t, 1), 5)} ${lpad(pct(cg.win), 5)} ${lpad(f(c2.meanR), 7)}`);
+    }
+  }
+  // The cell named before the run, taken apart: before costs, the pattern | its control.
+  const at = (c) => c.atLevel, before = pick(gross, "B|H4|2|1|pattern", at), control = pick(gross, "B|H4|2|1|control", at);
+  console.log(`\n=== The cell named before the run: 2 candles on the right, take 1:1, at a level; before costs, the pattern | its control ===`);
+  console.log(`${line("  buys", before.filter((c) => c.t.dir > 0))} | ${line("", control.filter((c) => c.t.dir > 0)).trim()}`);
+  console.log(`${line("  sells", before.filter((c) => c.t.dir < 0))} | ${line("", control.filter((c) => c.t.dir < 0)).trim()}`);
+  console.log(`${line("  first half", before.filter((c) => c.t.date < SPLIT))} | ${line("", control.filter((c) => c.t.date >= SPLIT === false)).trim()}`);
+  console.log(`${line("  second half", before.filter((c) => c.t.date >= SPLIT))} | ${line("", control.filter((c) => c.t.date >= SPLIT)).trim()}`);
+  for (let y = 2015; y <= 2021; y++) console.log(`${line(`  ${y}`, before.filter((c) => c.t.date.startsWith(String(y))))} | ${line("", control.filter((c) => c.t.date.startsWith(String(y)))).trim()}`);
+  for (const p of CROSSES) console.log(`${line(`  ${p}`, before.filter((c) => c.symbol === p))} | ${line("", control.filter((c) => c.symbol === p)).trim()}`);
+  const tr = pick(net, "B|H4|2|1|pattern", at), pips = tr.map((c) => Math.abs(c.t.entry - c.t.stop) / markets.get(c.symbol).s.pip).sort((x, y) => x - y);
+  console.log(`median stop ${pips.length ? pips[Math.floor(pips.length / 2)].toFixed(0) : "n/a"} pips; two legs take ${(mean(before.map((c) => c.t.r)) - mean(tr.map((c) => c.t.r))).toFixed(3)} R a trade, the own cross ${(mean(before.map((c) => c.t.r)) - mean(pick(own, "B|H4|2|1|pattern", at).map((c) => c.t.r))).toFixed(3)} R`);
 } else if (levelMode) {
   // Added after the 64 cells were read: the divergence on H4 at a level, before costs and after, against its control.
-  const line = (label, trades) => { const s = summary(trades); return `${pad(label, 26)} ${lpad(s.n, 5)} ${lpad(f(s.meanR), 7)} ${lpad(f(s.t, 1), 5)} ${lpad(pct(s.win), 5)}`; };
+  const line = brief;
   for (const right of RULES.rights) for (const take of RULES.takes) {
     const stem = `B|H4|${right}|${take}`, at = (c) => c.atLevel;
     const sets = { "pattern before": pick(gross, `${stem}|pattern`, at), "pattern after": pick(net, `${stem}|pattern`, at), "control before": pick(gross, `${stem}|control`, at), "control after": pick(net, `${stem}|control`, at) };
