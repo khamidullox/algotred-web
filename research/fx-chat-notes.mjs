@@ -26,6 +26,8 @@
 // within a bar.
 //
 // Usage: node research/fx-chat-notes.mjs [gallery.html]               dev
+//        node research/fx-chat-notes.mjs level                         dev: the divergence on H4 at a level (the one
+//          family that stood above its control when the 64 cells were read) by pair, by year and by side
 //        node research/fx-chat-notes.mjs window FROM TO                a list of trades in a window that ends
 //          before dev begins: to check the mechanics, nothing is counted
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -59,7 +61,8 @@ const RULES = {
   lifeCandles: 120, // candles of its timeframe a trade may live
 };
 const windowMode = process.argv[2] === "window" ? { from: process.argv[3], to: process.argv[4] } : null;
-const galleryFile = windowMode ? undefined : process.argv[2];
+const levelMode = process.argv[2] === "level";
+const galleryFile = windowMode || levelMode ? undefined : process.argv[2];
 const FROM = windowMode ? windowMode.from : DEV_FROM, TO = windowMode ? windowMode.to : DEV_TO;
 if (windowMode && !(windowMode.to < DEV_FROM)) { console.error(`the window must end before ${DEV_FROM}: dev, test and holdout are not for checking the mechanics`); process.exit(1); }
 const DAY_ATR = windowMode ? 5 : 20; // the data begin four weeks before dev: the check of the mechanics takes a shorter daily ATR
@@ -344,7 +347,9 @@ function cardA(m, c, title) {
   const fr = frame(m, c, H, [level(1.618)]);
   const { x, y, bw, W, padR } = fr, p = fr.bars[c.j - 1], b = fr.bars[c.j];
   const box = `<rect x="${n1(x(c.j - 1) - bw)}" y="${n1(y(Math.max(p.h, b.h)) - 3)}" width="${n1(x(c.j) - x(c.j - 1) + 2 * bw)}" height="${n1(y(Math.min(p.l, b.l)) - y(Math.max(p.h, b.h)) + 6)}" class="box"/>`;
-  const grid = [0.382, 0.5, 1].map((v) => `<line x1="${n1(x(c.j))}" x2="${W - padR}" y1="${n1(y(level(v)))}" y2="${n1(y(level(v)))}" class="grid"/><text x="${n1(x(c.j) + bw + 3)}" y="${n1(y(level(v)) - 3)}" class="sm">${v}</text>`).join("");
+  // The labels of 0.382 and 0.5 stand on the outer sides of their lines, or they would cover each other.
+  const below = (v) => (v === 0.382 ? c.dir > 0 : c.dir < 0);
+  const grid = [0.382, 0.5, 1].map((v) => `<line x1="${n1(x(c.j))}" x2="${W - padR}" y1="${n1(y(level(v)))}" y2="${n1(y(level(v)))}" class="grid"/><text x="${n1(x(c.j) + bw + 3)}" y="${n1(y(level(v)) + (below(v) ? 10 : -3))}" class="sm">${v}</text>`).join("");
   const mark = `<line x1="${n1(x(fr.entryBar))}" x2="${n1(x(fr.entryBar))}" y1="12" y2="${H - 12}" class="entry"/>`;
   const svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}">${fr.candles}${box}${grid}${mark}${fr.hline(t.entry, "ent", "вход")}${fr.hline(t.stop, "stp", "стоп (0)", c.j)}${fr.hline(t.take, "tp", "цель", c.j)}</svg>`;
   const digits = m.s.digits === 3 ? 3 : 5;
@@ -356,7 +361,7 @@ function cardB(m, c, title) {
   const fr = frame(m, c, upper, []);
   const { x, y, W, padL, padR, from, to, bars } = fr, osc = m.tf[c.name].osc;
   const px = (k) => (c.dir > 0 ? bars[k].l : bars[k].h);
-  const yr = (v) => upper + 6 + ((100 - v) * (lower - 12)) / 100;
+  const yr = (v) => upper + 6 + ((90 - Math.min(90, Math.max(10, v))) * (lower - 12)) / 80; // RSI from 10 to 90 fills the panel
   const points = [];
   for (let i = from; i <= to; i++) if (Number.isFinite(osc[i])) points.push(`${n1(x(i))},${n1(yr(osc[i]))}`);
   const band = [30, 70].map((v) => `<line x1="${padL}" x2="${W - padR}" y1="${n1(yr(v))}" y2="${n1(yr(v))}" class="grid"/><text x="${W - padR + 4}" y="${n1(yr(v) + 4)}" class="sm">${v}</text>`).join("");
@@ -401,6 +406,23 @@ if (windowMode) {
         console.log(`  ${c.symbol} ${what} | ${c.t.dir > 0 ? "buy " : "sell"} ${b.date} ${String(b.hour).padStart(2, "0")}:${String(b.minute).padStart(2, "0")} at ${c.t.entry.toFixed(d)} stop ${c.t.stop.toFixed(d)} take ${c.t.take.toFixed(d)} rr ${c.t.rr.toFixed(2)} -> ${c.t.reason} ${x.date} ${String(x.hour).padStart(2, "0")}:${String(x.minute).padStart(2, "0")} r ${f(c.t.r, 2)}`);
       }
     }
+  }
+} else if (levelMode) {
+  // Added after the 64 cells were read: the divergence on H4 at a level, before costs and after, against its control.
+  const line = (label, trades) => { const s = summary(trades); return `${pad(label, 26)} ${lpad(s.n, 5)} ${lpad(f(s.meanR), 7)} ${lpad(f(s.t, 1), 5)} ${lpad(pct(s.win), 5)}`; };
+  for (const right of RULES.rights) for (const take of RULES.takes) {
+    const stem = `B|H4|${right}|${take}`, at = (c) => c.atLevel;
+    const sets = { "pattern before": pick(gross, `${stem}|pattern`, at), "pattern after": pick(net, `${stem}|pattern`, at), "control before": pick(gross, `${stem}|control`, at), "control after": pick(net, `${stem}|control`, at) };
+    console.log(`\n=== H4, ${right} candles on the right, take 1:${take}, at a level ===`);
+    console.log(`${pad("", 26)} ${lpad("n", 5)} ${lpad("R", 7)} ${lpad("t", 5)} ${lpad("wins", 5)}`);
+    for (const [label, trades] of Object.entries(sets)) console.log(line(label, trades));
+    const before = sets["pattern before"], control = sets["control before"];
+    console.log("by pair, before costs: the pattern | its control");
+    for (const p of PAIRS) console.log(`${line(`  ${p}`, before.filter((c) => c.symbol === p))} | ${line("", control.filter((c) => c.symbol === p)).trim()}`);
+    console.log("by year, before costs: the pattern | its control");
+    for (let y = 2015; y <= 2021; y++) console.log(`${line(`  ${y}`, before.filter((c) => c.t.date.startsWith(String(y))))} | ${line("", control.filter((c) => c.t.date.startsWith(String(y)))).trim()}`);
+    console.log(`${line("  buys", before.filter((c) => c.t.dir > 0))} | ${line("", control.filter((c) => c.t.dir > 0)).trim()}`);
+    console.log(`${line("  sells", before.filter((c) => c.t.dir < 0))} | ${line("", control.filter((c) => c.t.dir < 0)).trim()}`);
   }
 } else {
   const months = (Date.parse(DEV_TO) - Date.parse(DEV_FROM)) / (86400e3 * 30.44);
