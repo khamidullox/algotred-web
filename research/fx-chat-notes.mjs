@@ -615,9 +615,9 @@ if (windowMode) {
     const plus = PAIRS.filter((p) => mean(tr.filter((c) => c.symbol === p).map((c) => c.t.r)) > 0).length;
     const cn = summary(pick(net, `${stem}|control`, test)), cg = summary(pick(gross, `${stem}|control`, test));
     cells.push({ label: `${stem} ${label}`, n: all.n, perMonth: all.n / months, before: gs.meanR, after: all.meanR, t: all.t });
-    console.log(`${pad(label, 34)} ${lpad(all.n, 6)} ${lpad((all.n / months).toFixed(1), 6)} ${lpad(f(gs.meanR), 7)} ${lpad(f(all.meanR), 7)} ${lpad(f(all.t, 1), 5)} ${lpad(pct(gs.win), 5)} ${lpad(pct(gs.coin), 5)} | ${lpad(f(a.meanR), 7)} | ${lpad(f(b.meanR), 7)} | ${plus}/${PAIRS.length} || ${lpad(cn.n, 6)} ${lpad(f(cg.meanR), 7)} ${lpad(f(cn.meanR), 7)} ${lpad(pct(cg.win), 5)}`);
+    console.log(`${pad(label, 34)} ${lpad(all.n, 6)} ${lpad((all.n / months).toFixed(1), 6)} ${lpad(f(gs.meanR), 7)} ${lpad(f(all.meanR), 7)} ${lpad(f(all.t, 1), 5)} ${lpad(pct(gs.win), 5)} ${lpad(pct(gs.coin), 5)} | ${lpad(f(a.meanR), 7)} | ${lpad(f(b.meanR), 7)} | ${plus}/${PAIRS.length} || ${lpad(cn.n, 6)} ${lpad(f(cg.meanR), 7)} ${lpad(f(cn.meanR), 7)} ${lpad(pct(cg.win), 5)} ${lpad(f(cg.t, 1), 5)}`);
   };
-  const head = (title) => { console.log(`\n=== ${title} ===`); console.log(`${pad("", 34)} ${lpad("n", 6)} ${lpad("/mo", 6)} ${lpad("before", 7)} ${lpad("after", 7)} ${lpad("t", 5)} ${lpad("wins", 5)} ${lpad("coin", 5)} | ${lpad("1st", 7)} | ${lpad("2nd", 7)} | pairs+ || control: n, before, after, wins`); };
+  const head = (title) => { console.log(`\n=== ${title} ===`); console.log(`${pad("", 34)} ${lpad("n", 6)} ${lpad("/mo", 6)} ${lpad("before", 7)} ${lpad("after", 7)} ${lpad("t", 5)} ${lpad("wins", 5)} ${lpad("coin", 5)} | ${lpad("1st", 7)} | ${lpad("2nd", 7)} | pairs+ || control: n, before, after, wins, t before costs`); };
   console.log(`Two notes from the chat, dev ${DEV_FROM} .. ${DEV_TO}. R = the distance from the entry to the stop; "before" and "wins" are before costs; t counts weeks.`);
   console.log(`"coin" is the share of wins that gives 0 R at these targets. The control stands to the right of every row.`);
   const contexts = [["every pattern", () => true], ["at a 20-candle extreme", (c) => c.atExtreme], ["with the trend by swings", (c) => c.withTrend]];
