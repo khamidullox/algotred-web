@@ -38,3 +38,56 @@
 .signal-card details {
   margin-top: 8px;
 }
+
+/* The hint for a trade: entry, stop, lot, exit, one under another. */
+.signal-plan {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 10px 14px;
+  border-left: 3px solid var(--accent);
+}
+
+.signal-plan > div {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 4px 12px;
+}
+
+.signal-plan dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.signal-plan dd {
+  margin: 0;
+}
+
+.signal-risk {
+  margin: 14px 0;
+}
+
+.signal-risk .toolbar {
+  margin: 0;
+}
+
+.signal-risk input[type="number"] {
+  width: 11rem;
+  min-height: 36px;
+  padding: 6px 10px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.banner.ok {
+  color: var(--good);
+}
+
+@media (max-width: 520px) {
+  .signal-plan > div {
+    grid-template-columns: 1fr;
+  }
+}

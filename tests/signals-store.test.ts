@@ -113,6 +113,161 @@ describe("loadSignals without the Nasdaq export", () => {
   });
 });
 
+describe("loadSignals with the feed of the MT5 indicator", () => {
+  const feed = mkdtempSync(path.join(tmpdir(), "signals-feed-"));
+  afterAll(() => rmSync(feed, { recursive: true, force: true }));
+
+  // The broker's own names and contract: 5 USD a point for a lot, lots of 0.1.
+  const spx = { symbol: "SPX500", title: "S&P 500", file: "SPX500_D1.csv", digits: 2, tickSize: 0.1, tickValue: 0.5, lotMin: 0.1, lotStep: 0.1, lotMax: 50, dayOpen: true };
+  const ndx = { ...spx, symbol: "NDX100", title: "Nasdaq 100", file: "NDX100_D1.csv", dayOpen: false };
+  const lost = { ...spx, symbol: "US30", title: "Dow Jones", file: "US30_D1.csv" };
+  const meta = (symbols: readonly object[], balance = 6000): string =>
+    JSON.stringify({ version: 1, serverTime: "2024.07.31 14:05:10", server: "Broker-Demo", currency: "USD", balance, symbols });
+  // The entry day is trading: it opened at the signal day's close, 6970, and stands at 7100.
+  writeFileSync(path.join(feed, "SPX500_D1.csv"), daily([...DIP, 7100]));
+  writeFileSync(path.join(feed, "NDX100_D1.csv"), daily(DIP));
+  writeFileSync(path.join(feed, "feed.json"), meta([spx, ndx, lost]));
+  // The moment asked about is irrelevant to which bars are closed: the terminal said it.
+  const view = loadSignals(config, serverDay(LAST + 30), feed);
+  const card = (symbol: string) => view.cards.find((item) => item.symbol === symbol);
+
+  it("shows the terminal's instruments under the broker's names, with its balance as the account", () => {
+    expect(view.source).toMatchObject({ kind: "terminal", server: "Broker-Demo", serverTime: "2024.07.31 14:05:10" });
+    expect(view.cards.map((item) => item.symbol)).toEqual(["SPX500", "NDX100", "US30"]);
+    expect(view.accountSize).toBe(6000);
+    expect(view.riskPct).toBe(0.5);
+    expect(view.riskUsd).toBe(30);
+    expect(view.currency).toBe("USD");
+    expect(card("NDX100")?.note).toContain("ТЗ 17.18");
+    expect(card("SPX500")?.note).toBeNull();
+  });
+
+  it("leaves the day still trading out of the state and plans the entry from its open", () => {
+    const own = card("SPX500");
+    expect(own?.asOf).toBe(serverDay(LAST));
+    expect(own?.unfinishedDayDropped).toBe(true);
+    expect(own?.state).toMatchObject({ kind: "enter", direction: "BUY" });
+    expect(own?.today).toEqual({ open: 6970, high: 7105, low: 6965, last: 7100 });
+    const atr = own?.indicators?.atr as number;
+    const stop = Math.round((6970 - 2 * atr) * 100) / 100;
+    expect(own?.plan).toEqual({ entryPrice: 6970, stopPrice: stop, stopTouched: false });
+    expect(own?.sizing?.stopDistance).toBeCloseTo(6970 - stop, 10);
+    // Entered at the open, and the day stands above SMA(5): tomorrow the rule leaves.
+    expect(own?.nextDay).toEqual({ kind: "exit", direction: "BUY" });
+  });
+
+  it("counts the lot from the broker's contract, not from the project's config", () => {
+    const own = card("SPX500");
+    expect(own?.lotRules).toEqual({ moneyPerPointPerLot: 5, lotStep: 0.1, lotMin: 0.1, lotMax: 50 });
+    const distance = own?.sizing?.stopDistance as number;
+    // 30 USD of risk, 5 USD a point: with a stop of some 50 points that is 0.1 lot.
+    expect(distance).toBeGreaterThan(30);
+    expect(distance).toBeLessThan(60);
+    expect(own?.sizing?.lots).toBe(0.1);
+    expect(own?.sizing?.minLotRiskUsd).toBeCloseTo(0.1 * 5 * distance, 8);
+  });
+
+  it("takes the terminal's word that the last day is closed, whatever the clock says", () => {
+    // Long before that day ended by the clock, the same file gives the signal: dayOpen is false.
+    const early = loadSignals(config, serverDay(LAST) + 3_600_000, feed).cards.find((item) => item.symbol === "NDX100");
+    expect(early?.asOf).toBe(serverDay(LAST));
+    expect(early?.unfinishedDayDropped).toBe(false);
+    expect(early?.state.kind).toBe("enter");
+    expect(early?.today).toBeNull();
+    expect(early?.plan).toBeNull();
+    expect(early?.nextDay).toBeNull();
+  });
+
+  it("says so when a file named by the feed is not there, and goes on with the rest", () => {
+    expect(card("US30")?.problem).toContain("не читается");
+    expect(card("US30")?.state).toEqual({ kind: "flat" });
+  });
+
+  it("notices a stop already reached on the entry day", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "signals-feed-stop-"));
+    try {
+      // The entry day fell to 6800: its low, 6795, is under the stop some 50 points below 6970.
+      writeFileSync(path.join(dir, "SPX500_D1.csv"), daily([...DIP, 6800]));
+      writeFileSync(path.join(dir, "feed.json"), meta([spx], 0));
+      const stopped = loadSignals(config, serverDay(LAST + 1), dir);
+      expect(stopped.cards[0]?.plan?.stopTouched).toBe(true);
+      // No balance from the terminal: the account of the config stands in.
+      expect(stopped.accountSize).toBe(10_000);
+      expect(stopped.riskUsd).toBe(50);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("falls back to the files of the data folder without a feed, and says why when the feed is broken", () => {
+    const none = loadSignals(config, serverDay(LAST + 8), path.join(feed, "missing"));
+    expect(none.source).toEqual({ kind: "files", feedProblem: null });
+    expect(none.cards.map((item) => item.symbol)).toEqual(["US500", "US30", "US2000", "USTEC"]);
+    expect(none.accountSize).toBe(10_000);
+
+    const broken = mkdtempSync(path.join(tmpdir(), "signals-feed-broken-"));
+    try {
+      writeFileSync(path.join(broken, "feed.json"), "{");
+      const view = loadSignals(config, serverDay(LAST + 8), broken);
+      expect(view.source.kind).toBe("files");
+      expect(view.source.kind === "files" ? view.source.feedProblem : null).toContain("не JSON");
+      expect(view.cards[0]?.state.kind).toBe("enter");
+    } finally {
+      rmSync(broken, { recursive: true, force: true });
+    }
+  });
+
+  it("without a feed folder given never looks for one", () => {
+    expect(loadSignals(config, serverDay(LAST + 8)).source).toEqual({ kind: "files", feedProblem: null });
+  });
+});
+
+describe("the lot rules of the files", () => {
+  it("come from the config's contract: 10 USD a point for a lot, lots of 0.01", () => {
+    const own = loadSignals(config, serverDay(LAST + 8)).cards[0];
+    expect(own?.lotRules).toEqual({ moneyPerPointPerLot: 10, lotStep: 0.01, lotMin: 0.01, lotMax: 0 });
+    expect(own?.today).toBeNull();
+    expect(own?.plan).toBeNull();
+  });
+});
+
+describe("the day still trading in a file of the data folder", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "signals-today-"));
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  // The signal day, then the entry day (down to 6950), then a day back up to 7060:
+  // above the mean of the last five closes, (7090 + 7050 + 6970 + 6950 + 7060) / 5 = 7024.
+  writeFileSync(path.join(dir, "US500_D1.csv"), daily([...DIP, 6950, 7060]));
+  const own = { ...config, dataDir: dir };
+
+  it("is the one row after the closed days, once that day has begun", () => {
+    // An hour into the entry day would be before its row exists; here the file was saved
+    // in the middle of the last day, so the entry day is closed and a position is open.
+    const midday = loadSignals(own, serverDay(LAST + 2) + 12 * 3_600_000).cards[0];
+    expect(midday?.asOf).toBe(serverDay(LAST + 1));
+    expect(midday?.state.kind).toBe("open");
+    expect(midday?.today).toEqual({ open: 6950, high: 7065, low: 6945, last: 7060 });
+    expect(midday?.stopTouchedToday).toBe(false);
+    expect(midday?.nextDay?.kind).toBe("exit");
+  });
+
+  it("is never taken from later rows when a past moment is asked about", () => {
+    // The end of the signal day exactly, as the page asks for a past date: two later rows
+    // are in the file, and none of them is "today".
+    const signalDay = loadSignals(own, serverDay(LAST + 1)).cards[0];
+    expect(signalDay?.asOf).toBe(serverDay(LAST));
+    expect(signalDay?.state.kind).toBe("enter");
+    expect(signalDay?.unfinishedDayDropped).toBe(true);
+    expect(signalDay?.today).toBeNull();
+    expect(signalDay?.plan).toBeNull();
+    expect(signalDay?.nextDay).toBeNull();
+    // The end of the day before the last row: one later row, opening at that very moment.
+    const dayBefore = loadSignals(own, serverDay(LAST + 2)).cards[0];
+    expect(dayBefore?.asOf).toBe(serverDay(LAST + 1));
+    expect(dayBefore?.today).toBeNull();
+    expect(dayBefore?.nextDay).toBeNull();
+  });
+});
+
 describe("findDailyExport", () => {
   it("takes the TZ name and the name MT5 gives a daily export, and nothing else", () => {
     expect(findDailyExport(dir, "US500")).toBe(path.join(dir, "US500_D1.csv"));

@@ -13,9 +13,14 @@
 //| checked on the day's range); research/check-mt5-signal.ts holds  |
 //| the same loop in TypeScript and compares it with the engine.     |
 //| The rule is frozen: its numbers are constants, not inputs.       |
+//|                                                                  |
+//| Since 1.10 it also feeds the project's "Signals" page: every 30  |
+//| seconds it rewrites the daily bars of each index and feed.json   |
+//| (contract facts, balance) in Common\Files\algotred_feed. The     |
+//| page reads them; nothing is sent anywhere outside this computer. |
 //+------------------------------------------------------------------+
 #property copyright   "algotred"
-#property version     "1.00"
+#property version     "1.10"
 #property description "Rsi2ReversionIndexD1: what the rule says today on the US indices."
 #property description "Shows the signal, the stop and the lot. Places no orders."
 #property indicator_chart_window
@@ -29,6 +34,7 @@ input int    InpHistoryTrades = 30;     // Сколько прошлых сде�
 input bool   InpAlert         = true;   // Окно с сообщением в день входа и выхода
 input bool   InpPush          = false;  // Сообщение на телефон (нужен MetaQuotes ID)
 input bool   InpExport        = true;   // Записывать сделки правила в файл для сверки
+input bool   InpFeed          = true;   // Передавать данные на страницу «Сигналы» сайта
 input int    InpFontSize      = 10;     // Размер шрифта
 input int    InpX             = 10;     // Отступ слева, точек
 input int    InpY             = 25;     // Отступ сверху, точек
@@ -47,6 +53,9 @@ input int    InpY             = 25;     // Отступ сверху, точек
 #define MIN_BARS      230
 #define DAY_SECONDS   86400
 #define REFRESH_SECONDS 10
+
+#define FEED_FOLDER   "algotred_feed"   // inside the terminal's common Files folder
+#define FEED_SECONDS  30
 
 #define PREFIX        "algotred_rsi2_"
 #define FONT          "Consolas"
@@ -114,6 +123,9 @@ color    g_colors[];
 int      g_lineCount  = 0;
 int      g_shownLines = 0;
 string   g_drawnKey   = "";
+datetime g_feedWritten = 0;     // local time of the last feed for the site
+bool     g_feedDue     = false; // this refresh writes the feed
+string   g_feedSymbols = "";    // the "symbols" array of feed.json being put together
 
 //+------------------------------------------------------------------+
 //| Small helpers                                                    |
@@ -670,7 +682,8 @@ string StateName(const int state)
      }
   }
 
-string FileNameOf(const string symbol)
+// The symbol with everything but Latin letters and digits replaced: safe in a file name.
+string PlainName(const string symbol)
   {
    string name = "";
    const int length = StringLen(symbol);
@@ -681,7 +694,92 @@ string FileNameOf(const string symbol)
                             (letter >= 'a' && letter <= 'z');
       name += plain ? ShortToString(letter) : "_";
      }
-   return "algotred_rsi2_" + name + ".csv";
+   return name;
+  }
+
+string FileNameOf(const string symbol)
+  {
+   return "algotred_rsi2_" + PlainName(symbol) + ".csv";
+  }
+
+//+------------------------------------------------------------------+
+//| The feed for the project's "Signals" page                        |
+//+------------------------------------------------------------------+
+string JsonText(const string value)
+  {
+   string text = value;
+   StringReplace(text, "\\", "\\\\");
+   StringReplace(text, "\"", "\\\"");
+   return "\"" + text + "\"";
+  }
+
+// The daily bars in the format of MT5's own export, the day still trading as the last row.
+// Written under another name and moved into place, so the page never reads half a file.
+bool WriteFeedBars(const string symbol, const MqlRates &bars[], const int copied, const int digits)
+  {
+   const string name = FEED_FOLDER + "\\" + PlainName(symbol) + "_D1.csv";
+   const string temp = name + ".tmp";
+   const int handle = FileOpen(temp, FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON);
+   if(handle == INVALID_HANDLE)
+     {
+      PrintFormat("Rsi2IndexSignal: cannot open %s, error %d", temp, GetLastError());
+      return false;
+     }
+   FileWriteString(handle, "<DATE>\t<OPEN>\t<HIGH>\t<LOW>\t<CLOSE>\t<TICKVOL>\t<VOL>\t<SPREAD>\r\n");
+   for(int i = 0; i < copied; i++)
+      FileWriteString(handle, TimeToString(bars[i].time, TIME_DATE) + "\t" +
+                      DoubleToString(bars[i].open, digits) + "\t" +
+                      DoubleToString(bars[i].high, digits) + "\t" +
+                      DoubleToString(bars[i].low, digits) + "\t" +
+                      DoubleToString(bars[i].close, digits) + "\t" +
+                      IntegerToString(bars[i].tick_volume) + "\t" +
+                      IntegerToString(bars[i].real_volume) + "\t" +
+                      IntegerToString(bars[i].spread) + "\r\n");
+   FileClose(handle);
+   return FileMove(temp, FILE_COMMON, name, FILE_COMMON | FILE_REWRITE);
+  }
+
+// One index for feed.json: its file and the broker's contract facts.
+void AddFeedSymbol(const string symbol, const string title, const int digits, const bool dayOpen)
+  {
+   double tickValue = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE_LOSS);
+   if(tickValue <= 0.0)
+      tickValue = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
+   const double tickSize = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_SIZE);
+   if(tickSize <= 0.0)
+      return;
+   if(g_feedSymbols != "")
+      g_feedSymbols += ",";
+   g_feedSymbols += "{\"symbol\":" + JsonText(symbol) +
+                    ",\"title\":" + JsonText(title) +
+                    ",\"file\":" + JsonText(PlainName(symbol) + "_D1.csv") +
+                    ",\"digits\":" + IntegerToString(digits) +
+                    ",\"tickSize\":" + DoubleToString(tickSize, 8) +
+                    ",\"tickValue\":" + DoubleToString(MathMax(tickValue, 0.0), 8) +
+                    ",\"lotMin\":" + DoubleToString(SymbolInfoDouble(symbol, SYMBOL_VOLUME_MIN), 4) +
+                    ",\"lotStep\":" + DoubleToString(SymbolInfoDouble(symbol, SYMBOL_VOLUME_STEP), 4) +
+                    ",\"lotMax\":" + DoubleToString(SymbolInfoDouble(symbol, SYMBOL_VOLUME_MAX), 4) +
+                    ",\"dayOpen\":" + (dayOpen ? "true" : "false") + "}";
+  }
+
+void WriteFeedMeta()
+  {
+   const string name = FEED_FOLDER + "\\feed.json";
+   const string temp = name + ".tmp";
+   const int handle = FileOpen(temp, FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON, '\t', CP_UTF8);
+   if(handle == INVALID_HANDLE)
+     {
+      PrintFormat("Rsi2IndexSignal: cannot open %s, error %d", temp, GetLastError());
+      return;
+     }
+   FileWriteString(handle, "{\"version\":1" +
+                   ",\"serverTime\":" + JsonText(TimeToString(TimeTradeServer(), TIME_DATE | TIME_SECONDS)) +
+                   ",\"server\":" + JsonText(AccountInfoString(ACCOUNT_SERVER)) +
+                   ",\"currency\":" + JsonText(AccountInfoString(ACCOUNT_CURRENCY)) +
+                   ",\"balance\":" + DoubleToString(MathMax(AccountSize(), 0.0), 2) +
+                   ",\"symbols\":[" + g_feedSymbols + "]}\r\n");
+   FileClose(handle);
+   FileMove(temp, FILE_COMMON, name, FILE_COMMON | FILE_REWRITE);
   }
 
 void ExportTrades(const string symbol, const MqlRates &bars[], const int closedCount, const int digits,
@@ -775,6 +873,9 @@ void DescribeSymbol(const int index)
    RuleResult said;
    RuleTrade  trades[];
    Replay(bars, closedCount, digits, said, trades);
+
+   if(g_feedDue && WriteFeedBars(symbol, bars, copied, digits))
+      AddFeedSymbol(symbol, g_titles[index], digits, dayOpen);
 
    const double todayOpen  = bars[copied - 1].open;
    const double todayHigh  = bars[copied - 1].high;
@@ -894,10 +995,17 @@ void Refresh()
       AddLine("Индексы не найдены по известным именам.", COLOR_NOTE);
       AddLine("Впишите их имена через запятую в настройке «Индексы».", COLOR_NOTE);
      }
+   g_feedDue     = InpFeed && (TimeLocal() - g_feedWritten >= FEED_SECONDS);
+   g_feedSymbols = "";
    for(int i = 0; i < total; i++)
      {
       AddLine(" ", COLOR_DIM);
       DescribeSymbol(i);
+     }
+   if(g_feedDue)
+     {
+      WriteFeedMeta();
+      g_feedWritten = TimeLocal();
      }
    AddLine(" ", COLOR_DIM);
    AddLine("Программа сделок не открывает и не закрывает.", COLOR_DIM);
