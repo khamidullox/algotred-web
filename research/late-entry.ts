@@ -85,9 +85,11 @@ const deviation = (values: readonly number[]): number => {
   return Math.sqrt(values.reduce((a, b) => a + (b - m) ** 2, 0) / Math.max(1, values.length - 1));
 };
 const signed = (value: number, digits = 3): string => (Number.isNaN(value) ? "n/a" : `${value >= 0 ? "+" : ""}${value.toFixed(digits)}`);
-const keyOf = (trade: Trade): string => `${trade.symbol} ${trade.signalTime}`;
 const zone = stand.config.brokerTimeZone;
 const clock = (ms: number): string => DateTime.fromMillis(ms, { zone }).toFormat("HH:mm");
+// The same signal traded at the open and late: the same instrument and the same server day of entry.
+// (The engine's signalTime will not do: it is the moment the order went out, which the delay moves.)
+const keyOf = (trade: Trade): string => `${trade.symbol} ${DateTime.fromMillis(trade.entryTime, { zone }).toFormat("yyyy-LL-dd")}`;
 
 // ---- The rule as it is, and the check that the wrapper changes nothing ----
 const base = run(late(null, "both"));
@@ -111,21 +113,32 @@ const rs = base.trades.map((trade) => trade.rMultiple);
 console.log(`\nAt the open (the rule as it is), dev from ${TRADE_FROM}: ${rs.length} trades, mean R ${signed(mean(rs))} after costs, ` +
   `sum ${signed(rs.reduce((a, b) => a + b, 0), 1)} R, entries at ${[...new Set(base.trades.map((trade) => clock(trade.entryTime)))].sort().join(", ")} server time`);
 
+const lotSkips = (result: BacktestResult): number => result.skipped.filter((skip) => skip.reason === "lot-too-small").length;
+console.log(`Signals the open dropped because 0.01 lot risked too much: ${lotSkips(base)}`);
+
 // ---- The delayed variants --------------------------------------------------
+/** A few pairs of one variant are printed in full, to read the mechanics off them. */
+const SAMPLE_HOUR = 5;
+const samples: { late: Trade; open: Trade }[] = [];
+
 function show(mode: Mode, title: string): void {
   console.log(`\n${title}`);
-  console.log("hour   trades  mean R   sum R   win %  | paired with the open: n   diff R    se     t   | only late / only open | fills at");
+  console.log("hour   trades  mean R   sum R   win %  | paired with the open: n   diff R    se     t   moved R | only late / only open | lot skips | fills at");
   for (const hour of HOURS) {
     const result = run(late(hour, mode));
     const own = result.trades.map((trade) => trade.rMultiple);
-    const pairs = result.trades.flatMap((trade) => {
+    const matched = result.trades.flatMap((trade) => {
       const other = baseByKey.get(keyOf(trade));
-      return other === undefined ? [] : [trade.rMultiple - other.rMultiple];
+      return other === undefined ? [] : [{ late: trade, open: other }];
     });
+    const pairs = matched.map((pair) => pair.late.rMultiple - pair.open.rMultiple);
+    // How far the price had gone the trade's way by the late fill, in units of the stop: what the late entry paid more.
+    const moved = mean(matched.map((pair) => ((pair.late.direction === "BUY" ? 1 : -1) * (pair.late.entryPrice - pair.open.entryPrice)) / pair.open.stopDistance));
     const keys = new Set(result.trades.map(keyOf));
     const onlyOpen = base.trades.filter((trade) => !keys.has(keyOf(trade))).length;
     const diff = mean(pairs);
     const se = deviation(pairs) / Math.sqrt(Math.max(1, pairs.length));
+    if (mode === "both" && hour === SAMPLE_HOUR) samples.push(...matched.slice(0, 6));
     const fills = mode === "exit" ? result.trades.filter((trade) => trade.exitReason === "strategy").map((trade) => clock(trade.exitTime)) : result.trades.map((trade) => clock(trade.entryTime));
     const counts = new Map<string, number>();
     for (const item of fills) counts.set(item, (counts.get(item) ?? 0) + 1);
@@ -133,8 +146,8 @@ function show(mode: Mode, title: string): void {
     console.log(
       `${String(hour).padStart(2, "0")}:00  ${String(own.length).padStart(5)}  ${signed(mean(own))}  ${signed(own.reduce((a, b) => a + b, 0), 1).padStart(6)}  ` +
         `${((100 * result.trades.filter((trade) => trade.netPnlUsd > 0).length) / Math.max(1, own.length)).toFixed(1).padStart(5)}  | ` +
-        `${String(pairs.length).padStart(22)}  ${signed(diff)}  ${se.toFixed(3)}  ${signed(diff / se, 1).padStart(5)}  | ` +
-        `${String(result.trades.length - pairs.length).padStart(9)} / ${String(onlyOpen).padEnd(9)} | ${usual}`,
+        `${String(pairs.length).padStart(22)}  ${signed(diff)}  ${se.toFixed(3)}  ${signed(diff / se, 1).padStart(5)}  ${signed(moved)} | ` +
+        `${String(result.trades.length - pairs.length).padStart(9)} / ${String(onlyOpen).padEnd(9)} | ${String(lotSkips(result)).padStart(9)} | ${usual}`,
     );
   }
 }
@@ -142,3 +155,13 @@ function show(mode: Mode, title: string): void {
 show("both", "Entries and exits both placed at the hour (what a person who looks once a day does)");
 show("entry", "Only entries placed at the hour, exits at the open");
 show("exit", "Only exits placed at the hour, entries at the open");
+
+console.log(`\nThe first pairs of the ${String(SAMPLE_HOUR).padStart(2, "0")}:00 variant, both orders late (open | late)`);
+const stamp = (ms: number): string => DateTime.fromMillis(ms, { zone }).toFormat("yyyy-LL-dd HH:mm");
+for (const { late: own, open } of samples) {
+  const digits = 2;
+  const one = (trade: Trade): string =>
+    `in ${stamp(trade.entryTime)} at ${trade.entryPrice.toFixed(digits)}, stop ${trade.stopLoss.toFixed(digits)} (${trade.stopDistance.toFixed(digits)} away), ` +
+    `out ${stamp(trade.exitTime)} at ${trade.exitPrice.toFixed(digits)} by ${trade.exitReason}, R ${signed(trade.rMultiple)}`;
+  console.log(`  ${own.symbol} ${own.direction}\n    open: ${one(open)}\n    late: ${one(own)}`);
+}
