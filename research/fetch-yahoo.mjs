@@ -7,7 +7,7 @@
 // stamp, so a bar stamped 00:00 "closes" 23 hours before its day does, the
 // daily signal is seen a day late and the entry comes a day after the rule
 // asks for it (TZ 17.22; the runs of 17.18 on these files had that delay).
-// Usage: node research/fetch-yahoo.mjs indices|stocks
+// Usage: node research/fetch-yahoo.mjs indices|stocks|futures
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,6 +30,19 @@ const INDICES = [
   ["NDXCASH", "^NDX"],
   ["DJICASH", "^DJI"],
   ["RUTCASH", "^RUT"],
+];
+
+/**
+ * The front futures contract of the four US indices (TZ 17.50): a daily bar
+ * that ends at 17:00 New York, like the broker's CFD, where the exchange index
+ * ends at 16:00. Yahoo joins the contracts as they are: the price jumps by the
+ * difference between two contracts on every roll, four times a year.
+ */
+const FUTURES = [
+  ["SPXFUT", "ES=F"],
+  ["RUTFUT", "RTY=F"],
+  ["DJIFUT", "YM=F"],
+  ["NDXFUT", "NQ=F"],
 ];
 
 /**
@@ -102,14 +115,14 @@ if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLTo
   const group = process.argv[2] ?? "indices";
   mkdirSync(OUT, { recursive: true });
   const summary = [];
-  if (group === "indices") {
-    for (const [name, ticker] of INDICES) {
+  if (group === "indices" || group === "futures") {
+    for (const [name, ticker] of group === "indices" ? INDICES : FUTURES) {
       const { rows, dropped, currency, zone } = await fetchDaily(ticker);
       write(name, rows, 2, 0);
       summary.push({ name, ticker, currency, zone, rows: rows.length, dropped, first: rows[0].date, last: rows.at(-1).date, lastClose: Number(rows.at(-1).close.toFixed(2)) });
       console.log(`${name.padEnd(8)} ${ticker.padEnd(10)} ${currency} ${zone.padEnd(18)} rows ${rows.length}, dropped ${dropped}, ${rows[0].date} .. ${rows.at(-1).date}, last close ${rows.at(-1).close.toFixed(2)}`);
     }
-    writeFileSync(path.join(OUT, "summary.json"), JSON.stringify(summary, null, 2));
+    writeFileSync(path.join(OUT, group === "indices" ? "summary.json" : "summary-futures.json"), JSON.stringify(summary, null, 2));
   } else if (group === "stocks") {
     const tickers = [...new Set(Object.values(BASKETS).flat())];
     for (const ticker of tickers) {
@@ -125,6 +138,6 @@ if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLTo
     }
     writeFileSync(path.join(OUT, "summary-stocks.json"), JSON.stringify(summary, null, 2));
   } else {
-    throw new Error("usage: node research/fetch-yahoo.mjs indices|stocks");
+    throw new Error("usage: node research/fetch-yahoo.mjs indices|stocks|futures");
   }
 }
