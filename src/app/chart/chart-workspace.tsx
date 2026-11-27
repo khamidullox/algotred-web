@@ -23,11 +23,25 @@ interface Loaded {
   readonly total: number;
   readonly digits: number;
   readonly hiddenFrom: number | null;
+  readonly hiddenTo: number | null;
+  readonly liveTo: number | null;
+}
+
+/** A date or a moment on the broker's server clock, from UTC seconds. */
+function serverClock(seconds: number, zone: string, withTime: boolean): string {
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: zone,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    ...(withTime ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : {}),
+  }).format(new Date(seconds * 1000));
 }
 
 interface Quote {
   readonly last: number;
-  readonly change: number;
+  /** Percent change from the day before; null when the two closes lie on either side of the hidden holdout. */
+  readonly change: number | null;
   readonly digits: number;
 }
 
@@ -152,6 +166,8 @@ export function ChartWorkspace({
           total: body.total,
           digits: body.digits,
           hiddenFrom: body.hiddenFrom,
+          hiddenTo: body.hiddenTo,
+          liveTo: body.liveTo,
         });
       })
       .catch((reason: unknown) => {
@@ -225,9 +241,11 @@ export function ChartWorkspace({
         .then((body) => {
           const [previous, last] = body.bars;
           if (cancelled || previous === undefined || last === undefined) return;
+          // Two closes on either side of the hidden holdout set are not one day apart: no change then.
+          const acrossGap = body.hiddenTo !== null && previous.time < body.hiddenTo && last.time >= body.hiddenTo;
           setQuotes((now) => ({
             ...now,
-            [name]: { last: last.close, change: (last.close / previous.close - 1) * 100, digits: body.digits },
+            [name]: { last: last.close, change: acrossGap ? null : (last.close / previous.close - 1) * 100, digits: body.digits },
           }));
         })
         .catch(() => undefined);
@@ -606,7 +624,11 @@ export function ChartWorkspace({
           Время на оси — сервера брокера ({brokerTimeZone}), как в MT5. Цены — Bid. Тяните график влево — подгрузится более ранняя
           история. Колёсико — масштаб.
           {loaded?.hiddenFrom != null &&
-            ` Свечи с ${formatServer(loaded.hiddenFrom, false)} не показываются: это набор holdout, его не смотрим до финальной проверки.`}
+            (loaded.hiddenTo != null
+              ? ` Свечи с ${serverClock(loaded.hiddenFrom, brokerTimeZone, false)} до ${serverClock(loaded.hiddenTo, brokerTimeZone, false)} не показываются: это набор holdout, его не смотрим до финальной проверки.`
+              : ` Свечи с ${serverClock(loaded.hiddenFrom, brokerTimeZone, false)} не показываются: это набор holdout, его не смотрим до финальной проверки.`)}
+          {loaded?.liveTo != null &&
+            ` После него — свечи из MetaTrader, последняя закрытая открылась ${serverClock(loaded.liveTo, brokerTimeZone, loaded.timeframe !== "D1")}; новые появятся после обновления страницы.`}
           {trades.length > 0 &&
             " Сделки: стрелка — вход, кружок — выход, красный и зелёный пунктир — стоп и тейк, синие точки — уровень сделки, серые квадраты — моменты, которые назвала стратегия."}
           {orders.length > 0 && " Серая линия с квадратом на конце — ордер, который снят без сделки."}
@@ -637,15 +659,18 @@ export function ChartWorkspace({
                   >
                     <span className="watch-symbol">{item}</span>
                     <span className="watch-last">{quote === undefined ? "…" : quote.last.toFixed(quote.digits)}</span>
-                    <span className={quote === undefined ? "watch-change" : quote.change >= 0 ? "watch-change ok" : "watch-change bad"}>
-                      {quote === undefined ? "" : `${quote.change >= 0 ? "+" : ""}${quote.change.toFixed(2)}%`}
+                    <span className={quote?.change == null ? "watch-change" : quote.change >= 0 ? "watch-change ok" : "watch-change bad"}>
+                      {quote?.change == null ? "" : `${quote.change >= 0 ? "+" : ""}${quote.change.toFixed(2)}%`}
                     </span>
                   </button>
                 );
               })}
           </div>
         ))}
-        <p className="muted small-text">Последнее дневное закрытие перед набором holdout и изменение за день.</p>
+        <p className="muted small-text">
+          Последнее дневное закрытие и изменение за день: из MetaTrader, если он передаёт свечи этого инструмента, иначе — перед
+          набором holdout.
+        </p>
       </aside>
     </div>
   );

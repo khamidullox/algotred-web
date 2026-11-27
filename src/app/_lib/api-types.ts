@@ -21,8 +21,13 @@ export interface BarsResponse {
   total: number;
   offset: number;
   bars: ChartBar[];
-  /** Start of the holdout set, UTC seconds: bars from there on are never served. Null when unknown. */
+  /** Start of the holdout set, UTC seconds: bars of the project's files from there on are never served. Null when unknown. */
   hiddenFrom: number | null;
+  /** End of the hidden holdout set, UTC seconds, when the terminal's candles are served after it (TZ 17.52); else null. */
+  hiddenTo: number | null;
+  /** Open time of the first and the last candle served from the terminal, UTC seconds; null when none. */
+  liveFrom: number | null;
+  liveTo: number | null;
 }
 
 export interface UploadResponse {

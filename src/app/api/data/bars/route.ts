@@ -14,7 +14,9 @@ import { createServerTimeConverter } from "../../../../data/time";
 import type { Bar } from "../../../../data/types";
 import type { BarsResponse, ChartBar } from "../../../_lib/api-types";
 import { findExport, getLineIndex, readBars } from "../../../_lib/big-series";
+import { arraySource, chartSpan, lowerBound, type BarSource } from "../../../_lib/chart-source";
 import { getSeries, getValidationReport } from "../../../_lib/data-store";
+import { defaultLiveDir, getLiveSeries } from "../../../_lib/live-series";
 
 export const dynamic = "force-dynamic";
 
@@ -23,25 +25,6 @@ const MAX_LIMIT = 5000;
 
 function fail(status: number, error: string): Response {
   return Response.json({ error }, { status });
-}
-
-/** Bars by index, whether they sit in memory or are read from disk window by window. */
-interface BarSource {
-  readonly count: number;
-  timeAt(index: number): number;
-  slice(from: number, to: number): Bar[];
-}
-
-/** First index whose bar opens at or after `time`; `count` when none. */
-function lowerBound(source: BarSource, time: number): number {
-  let low = 0;
-  let high = source.count;
-  while (low < high) {
-    const middle = (low + high) >>> 1;
-    if (source.timeAt(middle) < time) low = middle + 1;
-    else high = middle;
-  }
-  return low;
 }
 
 export function GET(request: Request): Response {
@@ -88,34 +71,31 @@ export function GET(request: Request): Response {
         ? fail(404, `Нет файла ${input.file}.`)
         : fail(422, `${input.file}: ${input.formatError}.`);
     }
-    const bars = input.parsed.bars;
-    source = {
-      count: bars.length,
-      timeAt: (at) => (bars[at] as Bar).time,
-      slice: (from, to) => bars.slice(from, to),
-    };
+    source = arraySource(input.parsed.bars);
   }
 
-  // The holdout set is not shown at all (TZ section 6, decision of 2026-11-17):
-  // the chart ends where the holdout begins. The boundary comes from the
-  // validated D1/H1/M15 files only.
-  let total = source.count;
-  let hiddenFrom: number | null = null;
+  // The holdout set is not shown at all (TZ section 6, decision of 2026-11-17).
+  // The boundary comes from the validated D1/H1/M15 files only. After the end
+  // of the project's data the candles the MT5 indicator passed on are shown
+  // (TZ 17.52); M1 and M5 have none.
+  let holdout: { start: number; end: number } | null = null;
   const report = getValidationReport(config);
   if (report.commonRange !== null) {
     try {
-      const holdoutStart = splitCommonRange(report.commonRange, zone, config.datasets).holdout.start;
-      total = lowerBound(source, holdoutStart);
-      hiddenFrom = holdoutStart / 1000;
+      const split = splitCommonRange(report.commonRange, zone, config.datasets);
+      holdout = { start: split.holdout.start, end: split.holdout.end };
     } catch (error) {
       if (!(error instanceof SplitError)) throw error;
     }
   }
+  const live = chartOnly ? null : (getLiveSeries(defaultLiveDir(), symbol, timeframe as Timeframe, zone)?.bars ?? null);
+  const span = chartSpan(source, live, holdout);
+  const visible: BarSource = span.source;
+  const total = visible.count;
 
   const requested = Number(params.get("limit") ?? DEFAULT_LIMIT);
   const limit = Number.isInteger(requested) ? Math.min(MAX_LIMIT, Math.max(1, requested)) : DEFAULT_LIMIT;
   const lastOffset = Math.max(0, total - limit);
-  const visible: BarSource = { ...source, count: total };
 
   let offset = lastOffset;
   const date = params.get("date");
@@ -144,7 +124,7 @@ export function GET(request: Request): Response {
     offset = Math.min(lastOffset, Math.max(0, parsed));
   }
 
-  const bars = source.slice(offset, Math.min(total, offset + limit)).map((bar: Bar): ChartBar => {
+  const bars = visible.slice(offset, Math.min(total, offset + limit)).map((bar: Bar): ChartBar => {
     const offsetMinutes = DateTime.fromMillis(bar.time, { zone }).offset;
     return {
       time: bar.time / 1000,
@@ -164,7 +144,10 @@ export function GET(request: Request): Response {
     total,
     offset,
     bars,
-    hiddenFrom,
+    hiddenFrom: span.hiddenFrom === null ? null : span.hiddenFrom / 1000,
+    hiddenTo: span.hiddenTo === null ? null : span.hiddenTo / 1000,
+    liveFrom: span.liveFrom === null ? null : span.liveFrom / 1000,
+    liveTo: span.liveTo === null ? null : span.liveTo / 1000,
   };
   return Response.json(body);
 }

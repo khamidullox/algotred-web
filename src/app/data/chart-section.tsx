@@ -288,7 +288,11 @@ export function ChartSection({
       <p className="muted">
         Цены — Bid, как в файле. Сервер брокера живёт по {brokerTimeZone}.
         {data?.hiddenFrom != null &&
-          ` Свечи с ${formatInZone(data.hiddenFrom, brokerTimeZone).slice(0, 10)} не показываются: это набор holdout (раздел 6 ТЗ).`}
+          (data.hiddenTo != null
+            ? ` Свечи с ${formatInZone(data.hiddenFrom * 1000, brokerTimeZone).slice(0, 10)} до ${formatInZone(data.hiddenTo * 1000, brokerTimeZone).slice(0, 10)} не показываются: это набор holdout (раздел 6 ТЗ).`
+            : ` Свечи с ${formatInZone(data.hiddenFrom * 1000, brokerTimeZone).slice(0, 10)} не показываются: это набор holdout (раздел 6 ТЗ).`)}
+        {data?.liveTo != null &&
+          ` После него — свечи из MetaTrader, последняя закрытая — ${formatInZone(data.liveTo * 1000, brokerTimeZone).slice(0, 16)}.`}
         {run !== null &&
           " На графике: стрелка — вход, точка — выход, пунктир — стоп (красный) и тейк (зелёный), пока позиция открыта."}
       </p>

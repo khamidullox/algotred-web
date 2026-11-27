@@ -22,9 +22,16 @@
 //| Since 1.20 the texts follow the hour the orders are placed by    |
 //| hand, 09:00 Tashkent time (TZ 17.49): the stop is shown as a     |
 //| distance from the actual entry price, not from the day's open.   |
+//|                                                                  |
+//| Since 1.30 it also passes the candles of every instrument of the |
+//| project to the site's charts (TZ 17.52): D1, H1 and M15 in       |
+//| Common\Files\algotred_live, in the format of MT5's own export.   |
+//| On start each file is written from InpLiveFrom; after that only  |
+//| closed bars are appended. The project's own export files and its |
+//| backtests are not touched.                                       |
 //+------------------------------------------------------------------+
 #property copyright   "algotred"
-#property version     "1.20"
+#property version     "1.30"
 #property description "Rsi2ReversionIndexD1: what the rule says today on the US indices."
 #property description "Shows the signal, the stop and the lot. Places no orders."
 #property indicator_chart_window
@@ -39,6 +46,9 @@ input bool   InpAlert         = true;   // Окно с сообщением в �
 input bool   InpPush          = false;  // Сообщение на телефон (нужен MetaQuotes ID)
 input bool   InpExport        = true;   // Записывать сделки правила в файл для сверки
 input bool   InpFeed          = true;   // Передавать данные на страницу «Сигналы» сайта
+input bool   InpLive          = true;   // Передавать свечи всех инструментов на графики сайта
+input string InpLiveSymbols   = "EURUSD,GBPUSD,USDJPY,AUDUSD,NZDUSD,USDCAD,USDCHF,XAUUSD,US500,US30,US2000"; // Инструменты для графиков сайта
+input datetime InpLiveFrom    = D'2026.10.01 00:00'; // Свечи для графиков начиная с даты
 input int    InpFontSize      = 10;     // Размер шрифта
 input int    InpX             = 10;     // Отступ слева, точек
 input int    InpY             = 25;     // Отступ сверху, точек
@@ -134,6 +144,16 @@ string   g_drawnKey   = "";
 datetime g_feedWritten = 0;     // local time of the last feed for the site
 bool     g_feedDue     = false; // this refresh writes the feed
 string   g_feedSymbols = "";    // the "symbols" array of feed.json being put together
+
+//--- the candles for the site's charts (TZ 17.52): a series is one symbol on one timeframe
+#define LIVE_FOLDER     "algotred_live"
+#define LIVE_TF_COUNT   3
+#define DAILY_HEADER    "<DATE>\t<OPEN>\t<HIGH>\t<LOW>\t<CLOSE>\t<TICKVOL>\t<VOL>\t<SPREAD>\r\n"
+#define INTRADAY_HEADER "<DATE>\t<TIME>\t<OPEN>\t<HIGH>\t<LOW>\t<CLOSE>\t<TICKVOL>\t<VOL>\t<SPREAD>\r\n"
+string   g_liveSymbols[];
+datetime g_liveLast[];          // per series: open time of the last bar in its file
+bool     g_liveWritten[];       // per series: its file was written since the start
+datetime g_liveAt      = 0;     // local time of the last pass over the series
 
 //+------------------------------------------------------------------+
 //| Small helpers                                                    |
@@ -821,6 +841,175 @@ void ExportTrades(const string symbol, const MqlRates &bars[], const int closedC
   }
 
 //+------------------------------------------------------------------+
+//| The candles for the site's charts                                |
+//+------------------------------------------------------------------+
+ENUM_TIMEFRAMES LiveTimeframe(const int k)
+  {
+   return k == 0 ? PERIOD_D1 : (k == 1 ? PERIOD_H1 : PERIOD_M15);
+  }
+
+string LiveTimeframeName(const int k)
+  {
+   return k == 0 ? "D1" : (k == 1 ? "H1" : "M15");
+  }
+
+void BuildLiveList()
+  {
+   ArrayResize(g_liveSymbols, 0);
+   string names[];
+   const int count = StringSplit(InpLiveSymbols, ',', names);
+   for(int i = 0; i < count; i++)
+     {
+      string name = names[i];
+      StringTrimLeft(name);
+      StringTrimRight(name);
+      bool custom = false;
+      if(name == "" || !SymbolExist(name, custom))
+         continue;
+      SymbolSelect(name, true);
+      const int size = ArraySize(g_liveSymbols);
+      ArrayResize(g_liveSymbols, size + 1);
+      g_liveSymbols[size] = name;
+     }
+   const int series = ArraySize(g_liveSymbols) * LIVE_TF_COUNT;
+   ArrayResize(g_liveLast, series);
+   ArrayResize(g_liveWritten, series);
+   if(series > 0)
+     {
+      ArrayInitialize(g_liveLast, 0);
+      ArrayInitialize(g_liveWritten, false);
+     }
+  }
+
+string LiveFileName(const int index)
+  {
+   return LIVE_FOLDER + "\\" + PlainName(g_liveSymbols[index / LIVE_TF_COUNT]) + "_" +
+          LiveTimeframeName(index % LIVE_TF_COUNT) + ".csv";
+  }
+
+// One row the way MT5 exports bars: a daily row has no time column.
+string LiveRow(const MqlRates &bar, const bool daily, const int digits)
+  {
+   string row = TimeToString(bar.time, TIME_DATE) + "\t";
+   if(!daily)
+      row += TimeToString(bar.time, TIME_SECONDS) + "\t";
+   return row + DoubleToString(bar.open, digits) + "\t" + DoubleToString(bar.high, digits) + "\t" +
+          DoubleToString(bar.low, digits) + "\t" + DoubleToString(bar.close, digits) + "\t" +
+          IntegerToString(bar.tick_volume) + "\t" + IntegerToString(bar.real_volume) + "\t" +
+          IntegerToString(bar.spread) + "\r\n";
+  }
+
+// The closed bars of a series that open at or after `from`, oldest first. Returns their count,
+// or -1 while the terminal is still loading the history: nothing is written from half a history.
+int ClosedRates(const string symbol, const ENUM_TIMEFRAMES timeframe, const datetime from, MqlRates &rates[])
+  {
+   if(SeriesInfoInteger(symbol, timeframe, SERIES_SYNCHRONIZED) == 0)
+     {
+      MqlRates probe[];
+      CopyRates(symbol, timeframe, 0, 1, probe);   // asks the terminal to load the history
+      return -1;
+     }
+   const datetime now = TimeTradeServer();
+   if(from > now)
+      return 0;
+   const int copied = CopyRates(symbol, timeframe, from, now, rates);
+   if(copied < 0)
+      return -1;
+   // The last bar may still be trading: a bar is closed once its whole period has passed.
+   const int seconds = PeriodSeconds(timeframe);
+   int closed = copied;
+   while(closed > 0 && rates[closed - 1].time + seconds > now)
+      closed--;
+   return closed;
+  }
+
+// The whole file of a series from InpLiveFrom, under another name first and then moved into place.
+void LiveWriteFull(const int index)
+  {
+   const string symbol = g_liveSymbols[index / LIVE_TF_COUNT];
+   const ENUM_TIMEFRAMES timeframe = LiveTimeframe(index % LIVE_TF_COUNT);
+   MqlRates rates[];
+   const int closed = ClosedRates(symbol, timeframe, InpLiveFrom, rates);
+   if(closed < 0)
+      return;
+   const bool daily = timeframe == PERIOD_D1;
+   const int  digits = (int)SymbolInfoInteger(symbol, SYMBOL_DIGITS);
+   const string name = LiveFileName(index);
+   const string temp = name + ".tmp";
+   const int handle = FileOpen(temp, FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON);
+   if(handle == INVALID_HANDLE)
+     {
+      PrintFormat("Rsi2IndexSignal: cannot open %s, error %d", temp, GetLastError());
+      return;
+     }
+   FileWriteString(handle, daily ? DAILY_HEADER : INTRADAY_HEADER);
+   for(int i = 0; i < closed; i++)
+      FileWriteString(handle, LiveRow(rates[i], daily, digits));
+   FileClose(handle);
+   if(!FileMove(temp, FILE_COMMON, name, FILE_COMMON | FILE_REWRITE))
+     {
+      PrintFormat("Rsi2IndexSignal: cannot move %s, error %d", temp, GetLastError());
+      return;
+     }
+   g_liveWritten[index] = true;
+   g_liveLast[index]    = closed > 0 ? rates[closed - 1].time : InpLiveFrom - 1;
+  }
+
+// The bars that closed since the last pass, added to the end of the file in one write.
+void LiveAppend(const int index)
+  {
+   const string symbol = g_liveSymbols[index / LIVE_TF_COUNT];
+   const ENUM_TIMEFRAMES timeframe = LiveTimeframe(index % LIVE_TF_COUNT);
+   MqlRates rates[];
+   const int closed = ClosedRates(symbol, timeframe, g_liveLast[index] + 1, rates);
+   if(closed <= 0)
+      return;
+   int first = 0;
+   while(first < closed && rates[first].time <= g_liveLast[index])
+      first++;
+   if(first >= closed)
+      return;
+   const bool daily = timeframe == PERIOD_D1;
+   const int  digits = (int)SymbolInfoInteger(symbol, SYMBOL_DIGITS);
+   string block = "";
+   for(int i = first; i < closed; i++)
+      block += LiveRow(rates[i], daily, digits);
+   // Shared for reading: the site may be reading the file this very moment.
+   const int handle = FileOpen(LiveFileName(index), FILE_READ | FILE_WRITE | FILE_SHARE_READ | FILE_TXT | FILE_ANSI | FILE_COMMON);
+   if(handle == INVALID_HANDLE)
+     {
+      // The file is gone or locked: write it whole on the next pass.
+      g_liveWritten[index] = false;
+      return;
+     }
+   FileSeek(handle, 0, SEEK_END);
+   FileWriteString(handle, block);
+   FileClose(handle);
+   g_liveLast[index] = rates[closed - 1].time;
+  }
+
+void LiveExport()
+  {
+   const int series = ArraySize(g_liveLast);
+   for(int index = 0; index < series; index++)
+     {
+      if(g_liveWritten[index])
+         LiveAppend(index);
+      else
+         LiveWriteFull(index);
+     }
+  }
+
+int LiveReady()
+  {
+   int ready = 0;
+   for(int index = ArraySize(g_liveWritten) - 1; index >= 0; index--)
+      if(g_liveWritten[index])
+         ready++;
+   return ready;
+  }
+
+//+------------------------------------------------------------------+
 //| A message once for every day with something to do                |
 //+------------------------------------------------------------------+
 void Notify(const string symbol, const RuleResult &said, const datetime asOf)
@@ -1014,7 +1203,15 @@ void Refresh()
       WriteFeedMeta();
       g_feedWritten = TimeLocal();
      }
+   if(InpLive && TimeLocal() - g_liveAt >= FEED_SECONDS)
+     {
+      LiveExport();
+      g_liveAt = TimeLocal();
+     }
    AddLine(" ", COLOR_DIM);
+   if(InpLive)
+      AddLine("графики для сайта: " + IntegerToString(LiveReady()) + " из " + IntegerToString(ArraySize(g_liveLast)) +
+              " рядов (D1, H1, M15)", COLOR_DIM);
    AddLine("Программа сделок не открывает и не закрывает.", COLOR_DIM);
    Render();
   }
@@ -1026,6 +1223,8 @@ int OnInit()
   {
    IndicatorSetString(INDICATOR_SHORTNAME, "Rsi2IndexSignal");
    BuildSymbolList();
+   if(InpLive)
+      BuildLiveList();
    EventSetTimer(REFRESH_SECONDS);
    Refresh();
    return INIT_SUCCEEDED;
