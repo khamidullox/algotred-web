@@ -7,7 +7,7 @@
 // stamp, so a bar stamped 00:00 "closes" 23 hours before its day does, the
 // daily signal is seen a day late and the entry comes a day after the rule
 // asks for it (TZ 17.22; the runs of 17.18 on these files had that delay).
-// Usage: node research/fetch-yahoo.mjs indices|stocks|futures
+// Usage: node research/fetch-yahoo.mjs indices|stocks|futures|futures-hourly
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -100,6 +100,51 @@ async function fetchDaily(ticker) {
   return { rows, dropped, currency: result.meta.currency, zone };
 }
 
+/**
+ * Daily bars of a futures contract built from its hourly bars (TZ 17.50, step 3): a day runs from
+ * 18:00 New York of the day before to 17:00, the same bounds as the broker's daily candle, and its
+ * close is the last hourly close before 17:00. The daily bars Yahoo gives for a future close on the
+ * settlement price fixed at 16:00 instead. Hourly bars go back 730 days only.
+ */
+async function fetchDailyFromHourly(ticker) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=730d&interval=60m`;
+  let body;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      body = await response.json();
+      break;
+    } catch (error) {
+      if (attempt === 5) throw new Error(`${ticker}: ${error.message}`);
+      await new Promise((resolve) => setTimeout(resolve, 3000 * attempt));
+    }
+  }
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  const result = body.chart?.result?.[0];
+  if (result === undefined) throw new Error(`${ticker}: no data in the answer`);
+  const clock = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" });
+  const quote = result.indicators.quote[0];
+  const days = new Map();
+  let dropped = 0;
+  result.timestamp.forEach((seconds, i) => {
+    const [open, high, low, close] = [quote.open[i], quote.high[i], quote.low[i], quote.close[i]];
+    const ok = [open, high, low, close].every((value) => typeof value === "number" && Number.isFinite(value) && value > 0);
+    if (!ok) { dropped++; return; }
+    // The trading day of an hourly bar: the New York date of the moment seven hours after its open,
+    // so that 18:00 and later belong to the next day and 17:00 is where a day ends.
+    const date = clock.format(new Date((seconds + 7 * 3600) * 1000)).slice(0, 10).replaceAll("-", ".");
+    const hour = Number(clock.format(new Date(seconds * 1000)).slice(11, 13));
+    const day = days.get(date);
+    if (day === undefined) days.set(date, { date, open, high, low, close, bars: 1, lastHour: hour });
+    else { day.high = Math.max(day.high, high); day.low = Math.min(day.low, low); day.close = close; day.bars++; day.lastHour = hour; }
+  });
+  const rows = [...days.values()];
+  // The last day may still be trading.
+  rows.pop();
+  return { rows, dropped, currency: result.meta.currency, zone: result.meta.exchangeTimezoneName };
+}
+
 function write(name, rows, digits, costShare) {
   const point = 10 ** -digits;
   const price = (value) => value.toFixed(digits);
@@ -123,6 +168,15 @@ if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLTo
       console.log(`${name.padEnd(8)} ${ticker.padEnd(10)} ${currency} ${zone.padEnd(18)} rows ${rows.length}, dropped ${dropped}, ${rows[0].date} .. ${rows.at(-1).date}, last close ${rows.at(-1).close.toFixed(2)}`);
     }
     writeFileSync(path.join(OUT, group === "indices" ? "summary.json" : "summary-futures.json"), JSON.stringify(summary, null, 2));
+  } else if (group === "futures-hourly") {
+    for (const [name, ticker] of FUTURES) {
+      const { rows, dropped, currency, zone } = await fetchDailyFromHourly(ticker);
+      write(`${name}17`, rows, 2, 0);
+      const hours = new Map();
+      for (const row of rows) hours.set(row.lastHour, (hours.get(row.lastHour) ?? 0) + 1);
+      console.log(`${name}17 ${ticker.padEnd(6)} ${currency} ${zone} days ${rows.length}, hourly bars dropped ${dropped}, ${rows[0].date} .. ${rows.at(-1).date}, ` +
+        `bars a day ${Math.min(...rows.map((row) => row.bars))}-${Math.max(...rows.map((row) => row.bars))}, last hour of the day (New York): ${[...hours.entries()].sort((a, b) => b[1] - a[1]).map(([hour, n]) => `${hour}:00 x${n}`).join(", ")}`);
+    }
   } else if (group === "stocks") {
     const tickers = [...new Set(Object.values(BASKETS).flat())];
     for (const ticker of tickers) {
@@ -138,6 +192,6 @@ if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLTo
     }
     writeFileSync(path.join(OUT, "summary-stocks.json"), JSON.stringify(summary, null, 2));
   } else {
-    throw new Error("usage: node research/fetch-yahoo.mjs indices|stocks|futures");
+    throw new Error("usage: node research/fetch-yahoo.mjs indices|stocks|futures|futures-hourly");
   }
 }
