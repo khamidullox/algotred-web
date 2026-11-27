@@ -73,13 +73,17 @@ export interface TodayBar {
   readonly last: number;
 }
 
-/** A signal to enter on a day that has already opened: where the rule's entry and stop are. */
+/**
+ * A signal to enter on a day that has already opened. The order is placed by
+ * hand during the morning (TZ 17.49), so the stop is the signal's distance
+ * from the actual fill, not from the day's open.
+ */
 export interface EntryPlan {
-  /** The open of the entry day: the price the rule enters at. */
-  readonly entryPrice: number;
-  readonly stopPrice: number;
-  /** True when today's range has already reached the stop. */
-  readonly stopTouched: boolean;
+  readonly openPrice: number;
+  /** The price when the file was written: about where a market order would fill now. */
+  readonly lastPrice: number;
+  /** The stop of an order filled at `lastPrice`. */
+  readonly stopAtLast: number;
 }
 
 /** What the rule would say tomorrow if today closed at the current price. */
@@ -244,12 +248,10 @@ function card(input: CardInput, zone: string, riskUsd: number, now: number): Sig
   let plan: EntryPlan | null = null;
   if (state.kind === "enter" && today !== null) {
     const sign = state.direction === "BUY" ? 1 : -1;
-    const stopPrice = roundPrice(spec, today.open - sign * state.stopDistance);
-    plan = { entryPrice: today.open, stopPrice, stopTouched: touched(state.direction, stopPrice) };
+    plan = { openPrice: today.open, lastPrice: today.last, stopAtLast: roundPrice(spec, today.last - sign * state.stopDistance) };
   }
   const stopDistance =
-    plan !== null ? Math.abs(plan.entryPrice - plan.stopPrice)
-    : state.kind === "enter" ? state.stopDistance
+    state.kind === "enter" ? state.stopDistance
     : state.kind === "flat" ? null
     : Math.abs(state.position.entryPrice - state.position.stopLoss);
   const price = state.kind === "open" || state.kind === "exit" ? state.position.entryPrice : last.close;

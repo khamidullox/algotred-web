@@ -18,9 +18,13 @@
 //| seconds it rewrites the daily bars of each index and feed.json   |
 //| (contract facts, balance) in Common\Files\algotred_feed. The     |
 //| page reads them; nothing is sent anywhere outside this computer. |
+//|                                                                  |
+//| Since 1.20 the texts follow the hour the orders are placed by    |
+//| hand, 09:00 Tashkent time (TZ 17.49): the stop is shown as a     |
+//| distance from the actual entry price, not from the day's open.   |
 //+------------------------------------------------------------------+
 #property copyright   "algotred"
-#property version     "1.10"
+#property version     "1.20"
 #property description "Rsi2ReversionIndexD1: what the rule says today on the US indices."
 #property description "Shows the signal, the stop and the lot. Places no orders."
 #property indicator_chart_window
@@ -53,6 +57,10 @@ input int    InpY             = 25;     // Отступ сверху, точек
 #define MIN_BARS      230
 #define DAY_SECONDS   86400
 #define REFRESH_SECONDS 10
+
+// When the orders are placed by hand. The rule was checked with exactly this
+// hour on dev, test and holdout (Rsi2ReversionIndexD1At9Tashkent, TZ 17.49).
+#define ORDER_HOUR    "к 9:00 по Ташкенту"
 
 #define FEED_FOLDER   "algotred_feed"   // inside the terminal's common Files folder
 #define FEED_SECONDS  30
@@ -830,7 +838,7 @@ void Notify(const string symbol, const RuleResult &said, const datetime asOf)
       text += (said.direction > 0 ? "сигнал КУПИТЬ" : "сигнал ПРОДАТЬ");
    else
       text += "сигнал ВЫЙТИ из позиции";
-   text += " на открытии дня после свечи " + DateText(asOf);
+   text += " утром после свечи " + DateText(asOf) + ", " + ORDER_HOUR;
    if(InpAlert)
       Alert(text);
    if(InpPush)
@@ -892,21 +900,19 @@ void DescribeSymbol(const int index)
       const color tone = buy ? COLOR_BUY : COLOR_SELL;
       if(dayOpen)
         {
-         const double stop     = NormalizeDouble(todayOpen - said.direction * said.stopDistance, digits);
-         const double distance = MathAbs(todayOpen - stop);
-         const bool   stopped  = buy ? todayLow <= stop : todayHigh >= stop;
-         AddLine("  ВХОД СЕГОДНЯ: " + (buy ? "КУПИТЬ" : "ПРОДАТЬ") + " по рынку", tone);
+         // The order is placed by hand in the morning (TZ 17.49): the stop is the
+         // signal's distance from the fill, not from the open of the day.
+         const double stop = NormalizeDouble(todayPrice - said.direction * said.stopDistance, digits);
+         AddLine("  ВХОД СЕГОДНЯ: " + (buy ? "КУПИТЬ" : "ПРОДАТЬ") + " по рынку, " + ORDER_HOUR, tone);
          AddLine("  открытие дня " + DoubleToString(todayOpen, digits) + SEP + "сейчас " +
                  DoubleToString(todayPrice, digits), COLOR_TEXT);
-         AddLine("  стоп " + DoubleToString(stop, digits) + SEP + "от открытия до стопа " +
-                 DoubleToString(distance, digits), COLOR_TEXT);
-         AddLine("  " + LotText(symbol, distance), COLOR_TEXT);
-         if(stopped)
-            AddLine("  цена сегодня уже доходила до стопа: вход пропустить", COLOR_NOTE);
+         AddLine("  стоп на " + DoubleToString(said.stopDistance, digits) + (buy ? " ниже" : " выше") +
+                 " цены входа" + SEP + "сейчас это " + DoubleToString(stop, digits), COLOR_TEXT);
+         AddLine("  " + LotText(symbol, said.stopDistance), COLOR_TEXT);
         }
       else
         {
-         AddLine("  СИГНАЛ: " + (buy ? "КУПИТЬ" : "ПРОДАТЬ") + " на открытии следующего дня", tone);
+         AddLine("  СИГНАЛ: " + (buy ? "КУПИТЬ" : "ПРОДАТЬ") + " в следующий день, " + ORDER_HOUR, tone);
          AddLine("  стоп на " + DoubleToString(said.stopDistance, digits) + (buy ? " ниже" : " выше") +
                  " цены входа (2 x ATR)", COLOR_TEXT);
          AddLine("  " + LotText(symbol, said.stopDistance), COLOR_TEXT);
@@ -916,17 +922,18 @@ void DescribeSymbol(const int index)
      {
       AddLine("  ПОЗИЦИЯ ПО ПРАВИЛУ: " + position + " с " + DateText(said.entryTime) + " по " +
               DoubleToString(said.entryPrice, digits), COLOR_HOLD);
-      AddLine("  стоп " + DoubleToString(said.stopLoss, digits) + SEP + "выход после закрытия дня " +
+      AddLine("  стоп на " + DoubleToString(MathAbs(said.entryPrice - said.stopLoss), digits) +
+              (buy ? " ниже" : " выше") + " вашей цены входа" + SEP + "выход: день закроется " +
               (buy ? "выше" : "ниже") + " SMA(5)", COLOR_TEXT);
       if(dayOpen && (buy ? todayLow <= said.stopLoss : todayHigh >= said.stopLoss))
-         AddLine("  цена сегодня дошла до стопа: позиция по правилу закрыта", COLOR_NOTE);
+         AddLine("  от открытия дня входа стоп сегодня задет: проверьте сделку", COLOR_NOTE);
      }
    else if(said.state == STATE_EXIT)
      {
       if(dayOpen)
-         AddLine("  ВЫХОД СЕГОДНЯ: закрыть " + toClose + " по рынку", COLOR_EXIT);
+         AddLine("  ВЫХОД СЕГОДНЯ: закрыть " + toClose + " по рынку, " + ORDER_HOUR, COLOR_EXIT);
       else
-         AddLine("  ВЫХОД: закрыть " + toClose + " на открытии следующего дня", COLOR_EXIT);
+         AddLine("  ВЫХОД: закрыть " + toClose + " в следующий день, " + ORDER_HOUR, COLOR_EXIT);
       AddLine("  вход был " + DateText(said.entryTime) + " по " + DoubleToString(said.entryPrice, digits) +
               SEP + "стоп " + DoubleToString(said.stopLoss, digits), COLOR_TEXT);
      }

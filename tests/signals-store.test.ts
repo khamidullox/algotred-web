@@ -142,16 +142,16 @@ describe("loadSignals with the feed of the MT5 indicator", () => {
     expect(card("SPX500")?.note).toBeNull();
   });
 
-  it("leaves the day still trading out of the state and plans the entry from its open", () => {
+  it("leaves the day still trading out of the state and puts the stop the signal's distance from the current price", () => {
     const own = card("SPX500");
     expect(own?.asOf).toBe(serverDay(LAST));
     expect(own?.unfinishedDayDropped).toBe(true);
     expect(own?.state).toMatchObject({ kind: "enter", direction: "BUY" });
     expect(own?.today).toEqual({ open: 6970, high: 7105, low: 6965, last: 7100 });
     const atr = own?.indicators?.atr as number;
-    const stop = Math.round((6970 - 2 * atr) * 100) / 100;
-    expect(own?.plan).toEqual({ entryPrice: 6970, stopPrice: stop, stopTouched: false });
-    expect(own?.sizing?.stopDistance).toBeCloseTo(6970 - stop, 10);
+    // The order is placed by hand during the morning: the stop is 2 x ATR under the fill, not under the open.
+    expect(own?.plan).toEqual({ openPrice: 6970, lastPrice: 7100, stopAtLast: Math.round((7100 - 2 * atr) * 100) / 100 });
+    expect(own?.sizing?.stopDistance).toBeCloseTo(2 * atr, 10);
     // Entered at the open, and the day stands above SMA(5): tomorrow the rule leaves.
     expect(own?.nextDay).toEqual({ kind: "exit", direction: "BUY" });
   });
@@ -183,14 +183,17 @@ describe("loadSignals with the feed of the MT5 indicator", () => {
     expect(card("US30")?.state).toEqual({ kind: "flat" });
   });
 
-  it("notices a stop already reached on the entry day", () => {
+  it("moves the stop with the price on a falling entry day, and stands in the config's account without a balance", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "signals-feed-stop-"));
     try {
-      // The entry day fell to 6800: its low, 6795, is under the stop some 50 points below 6970.
+      // The entry day fell to 6800: an order placed now has its stop 2 x ATR under 6800, far under the open's.
       writeFileSync(path.join(dir, "SPX500_D1.csv"), daily([...DIP, 6800]));
       writeFileSync(path.join(dir, "feed.json"), meta([spx], 0));
       const stopped = loadSignals(config, serverDay(LAST + 1), dir);
-      expect(stopped.cards[0]?.plan?.stopTouched).toBe(true);
+      const own = stopped.cards[0];
+      const atr = own?.indicators?.atr as number;
+      expect(own?.plan).toEqual({ openPrice: 6970, lastPrice: 6800, stopAtLast: Math.round((6800 - 2 * atr) * 100) / 100 });
+      expect(own?.stopTouchedToday).toBe(false);
       // No balance from the terminal: the account of the config stands in.
       expect(stopped.accountSize).toBe(10_000);
       expect(stopped.riskUsd).toBe(50);

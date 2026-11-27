@@ -16,6 +16,12 @@ export const dynamic = "force-dynamic";
 /** How often the page asks for fresh data; the indicator rewrites its files every 30 seconds. */
 const REFRESH_SECONDS = 30;
 
+/**
+ * When the orders are placed by hand. The rule was checked with exactly this
+ * hour on all three datasets (Rsi2ReversionIndexD1At9Tashkent, TZ 17.49).
+ */
+const ORDER_HOUR = "к 9:00 по Ташкенту";
+
 const DIRECTION = { BUY: "покупка", SELL: "продажа" } as const;
 const ACTION = { BUY: "купить", SELL: "продать" } as const;
 const TO_CLOSE = { BUY: "покупку", SELL: "продажу" } as const;
@@ -23,9 +29,9 @@ const TO_CLOSE = { BUY: "покупку", SELL: "продажу" } as const;
 function stateLabel(card: SignalCard): string {
   const { state } = card;
   const opened = card.today !== null;
-  if (state.kind === "enter") return opened ? `Вход сегодня: ${ACTION[state.direction]}` : `Сигнал: ${DIRECTION[state.direction]} на следующем открытии`;
+  if (state.kind === "enter") return opened ? `Вход сегодня: ${ACTION[state.direction]}` : `Сигнал: ${DIRECTION[state.direction]} на следующий день`;
   if (state.kind === "open") return `В сделке: ${DIRECTION[state.position.direction]}`;
-  if (state.kind === "exit") return opened ? "Выход сегодня: закрыть" : "Сигнал: закрыть на следующем открытии";
+  if (state.kind === "exit") return opened ? "Выход сегодня: закрыть" : "Сигнал: закрыть на следующий день";
   return "Сигнала нет";
 }
 
@@ -148,11 +154,15 @@ export default async function SignalsPage(props: { searchParams: Promise<Record<
           <li>
             Покупка: день закрылся выше SMA({RSI2_REVERSION.trendSmaPeriod}), а RSI({RSI2_REVERSION.rsiPeriod}) ниже{" "}
             {RSI2_REVERSION.buyBelowRsi}. Продажа: ниже SMA({RSI2_REVERSION.trendSmaPeriod}) и RSI выше{" "}
-            {RSI2_REVERSION.sellAboveRsi}. Вход — на открытии следующего дня.
+            {RSI2_REVERSION.sellAboveRsi}. Вход — на следующий торговый день.
           </li>
           <li>
-            Стоп — {RSI2_REVERSION.atrMultiple} × ATR({RSI2_REVERSION.atrPeriod}) от цены входа. Тейка у правила нет: выход — на
-            открытии после дня, закрывшегося за SMA({RSI2_REVERSION.exitSmaPeriod}): выше неё для покупки, ниже для продажи.
+            Сделки ставятся утром, {ORDER_HOUR}: с этим часом правило проверено на истории и результата не теряет (ТЗ 17.49).
+            Вечером, после открытия торгов в США, вход теряет больше половины перевеса (ТЗ 17.48).
+          </li>
+          <li>
+            Стоп — {RSI2_REVERSION.atrMultiple} × ATR({RSI2_REVERSION.atrPeriod}) от фактической цены входа. Тейка у правила нет:
+            выход — после дня, закрывшегося за SMA({RSI2_REVERSION.exitSmaPeriod}): выше неё для покупки, ниже для продажи.
           </li>
           <li>
             Лот считается от стопа: при срабатывании стопа сделка теряет заданный процент депозита. Лот округляется вниз до шага
@@ -164,7 +174,7 @@ export default async function SignalsPage(props: { searchParams: Promise<Record<
           </li>
           <li>
             Страница считает по дневным свечам: вход по открытию дня без спреда, стоп по дневному диапазону. Движок проверяет
-            стоп по часовым свечам, поэтому отдельные сделки могут отличаться: на истории совпали 150 из 157 (ТЗ 17.20).
+            стоп по часовым свечам, поэтому отдельные сделки могут отличаться, а цены входа и стопа в расчёте страницы — от открытия дня: на истории совпали 150 из 157 (ТЗ 17.20).
           </li>
           <li>
             Папка, куда индикатор пишет данные для страницы: <code>{FEED_FOLDER}</code> в общей папке файлов терминала.
@@ -203,7 +213,7 @@ function SignalSection(props: {
   const { indicators: ind, state, sizing, today, plan } = card;
   const up = ind.close > ind.trendSma;
   const exitRule = (direction: "BUY" | "SELL"): string =>
-    `тейка нет; закрыть на открытии после дня, который закроется ${direction === "BUY" ? "выше" : "ниже"} SMA(${RSI2_REVERSION.exitSmaPeriod}), сейчас она ${price(ind.exitSma)}`;
+    `тейка нет; закрыть утром после дня, который закроется ${direction === "BUY" ? "выше" : "ниже"} SMA(${RSI2_REVERSION.exitSmaPeriod}), сейчас она ${price(ind.exitSma)}`;
   const held = (position: DailyPosition): string =>
     `${DIRECTION[position.direction]} с ${day(position.entryTime)} по ${price(position.entryPrice)} (открытие дня); закрытий в сделке: ${position.days}`;
   const lot: ReactNode = sizing === null ? null : <LotAdvice rules={card.lotRules} stopDistance={sizing.stopDistance} defaults={defaults} />;
@@ -212,23 +222,33 @@ function SignalSection(props: {
   const steps: { name: string; text: ReactNode }[] = [];
   if (state.kind === "enter" && sizing !== null) {
     const below = state.direction === "BUY" ? "ниже" : "выше";
-    if (plan !== null && today !== null) {
-      steps.push({ name: "Вход", text: `${ACTION[state.direction]} по рынку сегодня. Открытие дня ${price(plan.entryPrice)}, сейчас ${price(today.last)}.` });
-      steps.push({ name: "Стоп", text: `${price(plan.stopPrice)} — на ${price(sizing.stopDistance)} ${below} открытия дня.` });
+    if (plan !== null) {
+      steps.push({
+        name: "Вход",
+        text: `${ACTION[state.direction]} по рынку сегодня, ${ORDER_HOUR}. Открытие дня ${price(plan.openPrice)}, сейчас ${price(plan.lastPrice)}.`,
+      });
+      steps.push({
+        name: "Стоп",
+        text: `на ${price(sizing.stopDistance)} ${below} цены, по которой вы вошли; при входе по текущей цене это ${price(plan.stopAtLast)}.`,
+      });
     } else {
       const around = state.direction === "BUY" ? ind.close - sizing.stopDistance : ind.close + sizing.stopDistance;
-      steps.push({ name: "Вход", text: `${ACTION[state.direction]} на открытии следующего дня.` });
+      steps.push({ name: "Вход", text: `${ACTION[state.direction]} по рынку в следующий торговый день, ${ORDER_HOUR}.` });
       steps.push({ name: "Стоп", text: `на ${price(sizing.stopDistance)} ${below} цены входа; при входе около ${price(ind.close)} это ${price(around)}.` });
     }
     steps.push({ name: "Лот", text: lot });
     steps.push({ name: "Выход", text: `${exitRule(state.direction)}.` });
-  } else if (state.kind === "open") {
+  } else if (state.kind === "open" && sizing !== null) {
+    const below = state.position.direction === "BUY" ? "ниже" : "выше";
     steps.push({ name: "Позиция", text: `${held(state.position)}.` });
-    steps.push({ name: "Стоп", text: `${price(state.position.stopLoss)}.` });
+    steps.push({
+      name: "Стоп",
+      text: `на ${price(sizing.stopDistance)} ${below} вашей цены входа; от открытия дня входа это ${price(state.position.stopLoss)}.`,
+    });
     steps.push({ name: "Лот", text: lot });
     steps.push({ name: "Выход", text: `${exitRule(state.position.direction)}; закрытие ${price(ind.close)}.` });
   } else if (state.kind === "exit") {
-    const when = today !== null ? "по рынку сегодня" : "на открытии следующего дня";
+    const when = today !== null ? `по рынку сегодня, ${ORDER_HOUR}` : `по рынку в следующий торговый день, ${ORDER_HOUR}`;
     const side = state.position.direction === "BUY" ? "выше" : "ниже";
     steps.push({ name: "Выход", text: `закрыть ${TO_CLOSE[state.position.direction]} ${when}: последний день закрылся ${side} SMA(${RSI2_REVERSION.exitSmaPeriod}).` });
     steps.push({ name: "Позиция", text: `${held(state.position)}; стоп ${price(state.position.stopLoss)}.` });
@@ -261,8 +281,12 @@ function SignalSection(props: {
           ))}
         </dl>
       )}
-      {plan !== null && plan.stopTouched && <p className="bad">Сегодня цена уже доходила до стопа: по правилу такой вход пропускают.</p>}
-      {card.stopTouchedToday && <p className="bad">Сегодня цена дошла до стопа: позиция по правилу закрыта.</p>}
+      {card.stopTouchedToday && (
+        <p className="bad">
+          Сегодня цена дошла до стопа, посчитанного от открытия дня входа. Ваш стоп стоит от вашей цены входа: сработал ли он, видно в
+          терминале.
+        </p>
+      )}
       {state.kind === "flat" && (
         <p>
           {up
