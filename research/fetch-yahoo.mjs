@@ -139,9 +139,10 @@ async function fetchDailyFromHourly(ticker) {
     if (day === undefined) days.set(date, { date, open, high, low, close, bars: 1, lastHour: hour });
     else { day.high = Math.max(day.high, high); day.low = Math.min(day.low, low); day.close = close; day.bars++; day.lastHour = hour; }
   });
-  const rows = [...days.values()];
   // The last day may still be trading.
-  rows.pop();
+  const all = [...days.values()].slice(0, -1);
+  // A day with nothing after its evening hours (the eve of a holiday the source has no bars for) is not a day.
+  const rows = all.filter((row) => row.lastHour < 18);
   return { rows, dropped, currency: result.meta.currency, zone: result.meta.exchangeTimezoneName };
 }
 
