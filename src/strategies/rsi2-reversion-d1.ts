@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import type { Strategy } from "../engine/types";
+import type { Strategy, StrategyAction, StrategyInstance } from "../engine/types";
 import { AtrWilder } from "../indicators/atr";
 import { RsiWilder } from "../indicators/rsi";
 import { Sma } from "../indicators/sma";
@@ -22,6 +22,52 @@ export interface Rsi2Variant {
   readonly signalTimeframe: "D1" | "H1";
   /** Entries only from bars that close at or after this server-time instant (ISO, no zone). */
   readonly tradeFrom?: string;
+  /** Orders placed by hand at a wall-clock hour instead of at the daily close (TZ 17.49). Daily variant only. */
+  readonly orderClock?: OrderClock;
+}
+
+/** A whole hour of the day on the clock of a place: 9 in Asia/Tashkent is 09:00 there, summer and winter. */
+export interface OrderClock {
+  readonly hour: number;
+  readonly zone: string;
+}
+
+/**
+ * A daily strategy traded by a person who looks once a day (TZ 17.48, 17.49).
+ * The rule still decides at the close of a daily bar, but its order, an entry
+ * or an exit, is held back: it goes out at the first hourly close at or after
+ * `clock` on the day it would have been filled in, and the engine fills it at
+ * the next hourly open. That day is the server day of the first hourly bar
+ * that opens after the daily close. An order still held at the next daily
+ * close was never placed: it is dropped and that close decides anew. The stop
+ * distance comes with the signal, so the stop stands that far from the late
+ * fill; a stop already resting at the broker is not delayed.
+ */
+export function placedAtClock(rule: StrategyInstance, clock: OrderClock): StrategyInstance {
+  // `after` is the daily close that gave the order, `release` the moment it may go out.
+  let held: { action: Exclude<StrategyAction, { kind: "cancel" }>; after: number; release: number | null } | null = null;
+  return {
+    onBarClose(ctx) {
+      // The rule looks only at daily closes and returns null on every other bar.
+      const fresh = rule.onBarClose(ctx);
+      if (ctx.justClosed("D1")) {
+        held = fresh === null || fresh.kind === "cancel" ? null : { action: fresh, after: ctx.now, release: null };
+        return null;
+      }
+      if (held === null) return null;
+      // The bar that has just closed: once one has opened after the signal, its server day is the order's day.
+      const opened = ctx.bars("H1").last()?.time;
+      if (opened === undefined) return null;
+      if (held.release === null && opened >= held.after) {
+        const { year, month, day } = DateTime.fromMillis(opened, { zone: ctx.zone });
+        held.release = DateTime.fromObject({ year, month, day, hour: clock.hour }, { zone: clock.zone }).toMillis();
+      }
+      if (held.release === null || ctx.now < held.release) return null;
+      const { action } = held;
+      held = null;
+      return action;
+    },
+  };
 }
 
 /** UTC ms of a server-time instant; minus infinity when there is none. */
@@ -50,6 +96,8 @@ function createRsi2Strategy(
   variant: Rsi2Variant = { signalTimeframe: "D1" },
 ): Strategy {
   const tf = variant.signalTimeframe;
+  const clock = variant.orderClock;
+  if (clock !== undefined && tf !== "D1") throw new Error(`${name}: orderClock is for the daily variant only`);
   return {
     name,
     params: {
@@ -59,6 +107,7 @@ function createRsi2Strategy(
       signalTimeframe: tf,
       executionTimeframe: "H1",
       ...(variant.tradeFrom === undefined ? {} : { tradeFrom: `${variant.tradeFrom} server time` }),
+      ...(clock === undefined ? {} : { ordersPlacedAt: `${String(clock.hour).padStart(2, "0")}:00 ${clock.zone}` }),
     },
     executionTimeframe: "H1",
     symbols,
@@ -68,7 +117,7 @@ function createRsi2Strategy(
       const trend = new Sma(RSI2_REVERSION.trendSmaPeriod);
       const exit = new Sma(RSI2_REVERSION.exitSmaPeriod);
       let tradeFrom: number | null = null;
-      return {
+      const rule: StrategyInstance = {
         onBarClose(ctx) {
           if (!ctx.justClosed(tf)) return null;
           const bars = ctx.bars(tf);
@@ -114,6 +163,7 @@ function createRsi2Strategy(
           };
         },
       };
+      return clock === undefined ? rule : placedAtClock(rule, clock);
     },
   };
 }
@@ -125,6 +175,25 @@ export const rsi2ReversionD1 = createRsi2Strategy("Rsi2ReversionD1", FX_AND_GOLD
  * CFDs, the market the system was written for.
  */
 export const rsi2ReversionIndexD1 = createRsi2Strategy("Rsi2ReversionIndexD1", US_INDICES);
+
+/**
+ * The hour the customer named on 2026-11-27 for placing orders by hand: by
+ * 09:00 in Tashkent, which is 06:00 on the server in winter and 07:00 in
+ * summer. Entries only from 2016-09-01: a delay within the day needs real
+ * hourly bars (see RSI2_INDEX_H1 below).
+ */
+export const RSI2_INDEX_AT_9_TASHKENT: Rsi2Variant = {
+  signalTimeframe: "D1",
+  tradeFrom: "2016-09-01T00:00",
+  orderClock: { hour: 9, zone: "Asia/Tashkent" },
+};
+
+/**
+ * Rsi2ReversionIndexD1At9Tashkent (TZ 17.49): the confirmed rules of
+ * Rsi2ReversionIndexD1 with nothing changed but the moment the orders are
+ * placed, 09:00 Tashkent time instead of the daily open at 01:00 server time.
+ */
+export const rsi2ReversionIndexD1At9Tashkent = createRsi2Strategy("Rsi2ReversionIndexD1At9Tashkent", US_INDICES, RSI2_INDEX_AT_9_TASHKENT);
 
 /**
  * Real hourly bars of the index CFDs start on 2016-01-25 (US500), 2016-01-27

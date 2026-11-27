@@ -50,6 +50,8 @@ export const STRATEGY_NAMES = [
   // Stage 3 (TZ 17.17): the dip-buying rule found by the search on dev, and its control.
   "IbsDipIndexD1",
   "IbsIndexControl",
+  // Stage 3 (TZ 17.49): the confirmed index rule with its orders placed by hand at 09:00 Tashkent time.
+  "Rsi2ReversionIndexD1At9Tashkent",
 ] as const;
 
 /** An instrument name as MT5 writes it, e.g. EURUSD or XAUUSD. The set comes from the config (TZ 17). */

@@ -13,7 +13,7 @@ import { ibsDipIndexD1, ibsIndexControl } from "./ibs-dip-index-d1";
 import { mondayGapM15 } from "./monday-gap-m15";
 import { rectangleV1 } from "./rectangle-v1";
 import { rsi2IndexControl, rsi2IndexH1Control } from "./rsi2-index-control";
-import { rsi2ReversionD1, rsi2ReversionIndexD1, rsi2ReversionIndexH1 } from "./rsi2-reversion-d1";
+import { rsi2ReversionD1, rsi2ReversionIndexD1, rsi2ReversionIndexD1At9Tashkent, rsi2ReversionIndexH1 } from "./rsi2-reversion-d1";
 import { strongLevelD1 } from "./strong-level-d1";
 import { seriesBreakH4 } from "./series-break-h4";
 import { threeTouchTrendD1 } from "./three-touch-trend-d1";
@@ -45,4 +45,5 @@ export const STRATEGIES: Readonly<Record<StrategyName, Strategy>> = {
   MondayGapM15: mondayGapM15,
   IbsDipIndexD1: ibsDipIndexD1,
   IbsIndexControl: ibsIndexControl,
+  Rsi2ReversionIndexD1At9Tashkent: rsi2ReversionIndexD1At9Tashkent,
 };
